@@ -1,0 +1,29 @@
+{
+    "compilerOptions": {
+        "baseUrl": ".",
+        "rootDir": "./",
+        "target": "es5",
+        "downlevelIteration": true,
+        "experimentalDecorators": true,
+        "allowJs": true,
+        "skipLibCheck": true,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "strict": true,
+        "forceConsistentCasingInFileNames": true,
+        "noFallthroughCasesInSwitch": true,
+        "module": "esnext",
+        "moduleResolution": "node",
+        "resolveJsonModule": true,
+        "isolatedModules": false,
+        "typeRoots": ["./typings", "./node_modules/@types"],
+        "lib": ["es2017", "dom", "es2018.promise"],
+        "paths": {
+            "test/*": ["./test/*"],
+            "typings/*": ["./typings/*"]
+        },
+        "sourceMap": true
+    },
+    "include": ["./typings/**/*", "./src"],
+    "exclude": ["./node_modules"]
+}
