@@ -1,7 +1,9 @@
 import { Operation } from "./operation";
 
-class ReceiveOperation extends Operation {
-    constructor() {
-        super();
-    }
+export class ReceiveOperation implements Operation {
+    public constructor() {}
+
+    public exec() { return true; }
+
+    public isExecutable() { return true; }
 }

@@ -1,7 +1,9 @@
 import { Operation } from "./operation";
 
-class GenerateOperation extends Operation {
-    constructor() {
-        super();
-    }
+export class GenerateOperation implements Operation {
+    public constructor() {}
+
+    public exec() { return true; }
+
+    public isExecutable() { return true; }
 }

@@ -1,5 +1,4 @@
-export abstract class Operation {
-    public constructor() {}
-
-    public run() {}
+export interface Operation {
+    exec(...args: any[]): boolean;
+    isExecutable(): boolean;
 }
