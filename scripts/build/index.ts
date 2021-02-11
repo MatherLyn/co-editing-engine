@@ -14,7 +14,7 @@ function bootstrap() {
         const fileName = path.resolve(DEV_OUT_DIR, `./index.html`);
         const { readFile } = middleware.context.compiler.outputFileSystem;
 
-        function readIndexCallback(err: NodeJS.ErrnoException, buffer: Buffer) {
+        function readIndexCallback(err: NodeJS.ErrnoException, buffer: string | Buffer) {
             err && middleware.waitUntilValid(() => readFile(fileName, readIndexCallback));
 
             const html = buffer.toString();

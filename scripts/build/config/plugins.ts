@@ -8,7 +8,7 @@ export function getPlugins() {
     return [
         new HtmlWebpackPlugin({
             title: 'Co-Editing Test',
-            template: path.join(PROJECT_DIR, './test.html'),
+            template: path.join(PROJECT_DIR, './src/demos/index.html'),
         }),
         new MiniCssExtractPlugin({
             filename: '[name].css',

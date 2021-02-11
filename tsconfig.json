@@ -24,6 +24,6 @@
         },
         "sourceMap": true
     },
-    "include": ["./typings/**/*", "./src"],
+    "include": ["./typings/**/*", "./src", "./test"],
     "exclude": ["./node_modules"]
 }

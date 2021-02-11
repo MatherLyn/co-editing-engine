@@ -11,6 +11,8 @@ export const PROJECT_DIR = path.join(__dirname, '../../');
 
 export const ENTRY = path.join(PROJECT_DIR, './src/index.ts');
 
+export const DEMO_ENTRY = path.join(PROJECT_DIR, './src/demos/index.ts');
+
 export const DEV_PUBLIC_PATH = '/static/';
 
 export const DEV_OUT_DIR = path.join(PROJECT_DIR, './dev');

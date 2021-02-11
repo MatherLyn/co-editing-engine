@@ -1,7 +1,7 @@
-import { ENTRY } from '../paths';
+import { DEMO_ENTRY, ENTRY } from '../paths';
 
 export function getEntry() {
     return {
-        main: ENTRY,
+        main: [DEMO_ENTRY, ENTRY],
     }
 }

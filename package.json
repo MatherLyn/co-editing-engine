@@ -3,6 +3,7 @@
     "version": "1.0.0",
     "description": "A co-editing engine based on crdt written in JavaScript.",
     "scripts": {
+        "start": "npm run dev",
         "dev": "cross-env TS_NODE_PROJECT=scripts/tsconfig.scripts.json node -r ts-node/register --max-old-space-size=8192 scripts/build/index.ts",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
