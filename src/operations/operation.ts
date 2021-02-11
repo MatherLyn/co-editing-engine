@@ -1,4 +1,4 @@
-export abstract class Operations {
+export abstract class Operation {
     public constructor() {}
 
     public run() {}

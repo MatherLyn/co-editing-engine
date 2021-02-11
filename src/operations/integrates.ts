@@ -1,6 +1,6 @@
-import { Operations } from "./operation";
+import { Operation } from "./operation";
 
-class IntegrateOperation extends Operations {
+class IntegrateOperation extends Operation {
     constructor() {
         super();
     }

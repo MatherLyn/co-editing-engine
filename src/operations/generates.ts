@@ -1,6 +1,6 @@
-import { Operations } from "./operation";
+import { Operation } from "./operation";
 
-class GenerateOperation extends Operations {
+class GenerateOperation extends Operation {
     constructor() {
         super();
     }
