@@ -6,8 +6,6 @@ export function getResolve() {
         extensions: ['.js', '.ts', '.jsx', '.tsx'],
         alias: {
             'src': path.resolve(PROJECT_DIR, 'src'),
-            'script-loader': path.resolve(PROJECT_DIR, 'src/lib/fc-loader/script-loader'),
-            'disposable-side-effect': path.resolve(PROJECT_DIR, 'src/lib/disposable-side-effect'),
         },
     };
 }

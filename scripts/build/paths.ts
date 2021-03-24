@@ -9,9 +9,9 @@ export const DEV_SERVER_PORT = 8888;
 
 export const PROJECT_DIR = path.join(__dirname, '../../');
 
-export const ENTRY = path.join(PROJECT_DIR, './src/index.ts');
+// export const ENTRY = path.join(PROJECT_DIR, './src/index.ts');
 
-export const DEMO_ENTRY = path.join(PROJECT_DIR, './src/demos/index.ts');
+export const DEMO_ENTRY = path.join(PROJECT_DIR, './src/demos/index.tsx');
 
 export const DEV_PUBLIC_PATH = '/static/';
 

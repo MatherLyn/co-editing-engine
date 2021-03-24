@@ -4,6 +4,13 @@ export function getModule() {
     return {
         rules: [
             {
+                test: /\.tsx?$/,
+                use: [
+                    'babel-loader',
+                    'ts-loader'
+                ],
+            },
+            {
                 test: /\.ts$/,
                 use: [
                     'babel-loader',
@@ -44,6 +51,10 @@ export function getModule() {
                     },
                 ],
             },
+			{
+				test: /\.ttf$/,
+				use: ['file-loader']
+			},
         ],
     }
 }

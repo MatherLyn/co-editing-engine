@@ -1,8 +1,9 @@
 import path from 'path';
+import { PROJECT_DIR } from '../paths';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin';
-import { PROJECT_DIR } from '../paths';
+import MonacoEditorWebpackPlugin from 'monaco-editor-webpack-plugin';
 
 export function getPlugins() {
     return [
@@ -14,6 +15,7 @@ export function getPlugins() {
             filename: '[name].css',
             chunkFilename: '[name].css',
         }),
-        new FriendlyErrorsWebpackPlugin()
+        new FriendlyErrorsWebpackPlugin(),
+        new MonacoEditorWebpackPlugin(),
     ];
 }

@@ -14,10 +14,10 @@ function bootstrap() {
         const fileName = path.resolve(DEV_OUT_DIR, `./index.html`);
         const { readFile } = middleware.context.compiler.outputFileSystem;
 
-        function readIndexCallback(err: NodeJS.ErrnoException, buffer: string | Buffer) {
+        function readIndexCallback(err?: NodeJS.ErrnoException, buffer?: string | Buffer) {
             err && middleware.waitUntilValid(() => readFile(fileName, readIndexCallback));
 
-            const html = buffer.toString();
+            const html = buffer?.toString();
             res.set('Content-Type', 'text/html');
             res.send(html);
         }
