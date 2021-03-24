@@ -13,11 +13,11 @@
         "strict": true,
         "forceConsistentCasingInFileNames": true,
         "noFallthroughCasesInSwitch": true,
-        "module": "commonjs",
+        "module": "esnext",
         "moduleResolution": "node",
         "resolveJsonModule": true,
         "isolatedModules": false,
-        "typeRoots": ["./typings", "./node_modules/@types"],
+        "typeRoots": ["./typings", "./node_modules/@types", "./script/tsconfig.json"],
         "lib": ["es2017", "dom", "es2018.promise"],
         "paths": {
             "test/*": ["./test/*"],
@@ -26,5 +26,5 @@
         "sourceMap": true
     },
     "include": ["./typings/**/*", "./src", "./test"],
-    "exclude": ["./node_modules"]
+    "exclude": ["./node_modules", "./script"]
 }

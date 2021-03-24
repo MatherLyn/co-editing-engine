@@ -1,0 +1,9 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "sourceMap": true,
+        "esModuleInterop": true,
+    },
+    "include": ["./build"],
+}

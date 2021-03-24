@@ -3,7 +3,7 @@ import { server } from "./dev-server";
 import { middleware } from "./dev-server/middlewares";
 import { DEV_OUT_DIR, DEV_SERVER_PORT } from "./paths";
 
-function bootstrap() {
+export function bootstrap() {
     server.use(middleware);
 
     server.listen(DEV_SERVER_PORT, () => {
