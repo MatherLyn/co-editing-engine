@@ -8,28 +8,72 @@ import { uuidv4 } from 'lib0/random';
 import { Document } from 'src/structs/document';
 import { useQueryParams } from 'src/utils/custom-hooks';
 
+
+let websocket: WebSocket;
+
 const App = () => {
     //#region variables
     const options: monacoEditor.editor.IStandaloneEditorConstructionOptions = {
         fontSize: 16
     };
-    const { roomId } = useQueryParams();
     const [code, setCode] = useState('');
+    let isHost: boolean = false;
+    let clientID: number = -1;
+    let initialized: boolean = false;
     //#endregion
 
     //#region callbacks
-    const onChange = useCallback((value: string, event: monacoEditor.editor.IModelContentChangedEvent) => {
-
-    }, [code]);
     const editorDidMount = useCallback((editor: monacoEditor.editor.IStandaloneCodeEditor, monaco: typeof monacoEditor) => {
         editor.focus();
+        // @ts-ignore
+        window.editor = editor;
+        // @ts-ignore
+        window.monaco = monaco;
+    }, []);
+    const onChange = useCallback((value: string, event: monacoEditor.editor.IModelContentChangedEvent) => {
+        setCode(value);
     }, []);
     //#endregion
 
     //#region effects
     useEffect(() => {
-        const guid = uuidv4();
-        // const document = new Document(guid, '');
+        !websocket && (websocket = (new WebSocket(`ws://${location.hostname}:8889`)));
+
+        websocket.onmessage = (ev: MessageEvent<string>) => {
+            const { data } = ev;
+            const protocol = data[0];
+            const message = data.slice(3);
+
+            switch(protocol) {
+                case 'a': break;
+                case 'b': {
+                    break;
+                }
+                case 'n': break;
+                case 'w': {
+                    if (initialized) {
+                        if (isHost) {
+                            // @ts-ignore
+                            websocket.send(`s: ${window.editor.getValue()}`);
+                        }
+                    } else {
+                        clientID = Number(/\#\d+/.exec(data)?.[0].slice(1));
+                        isHost = clientID === 1;
+                        isHost && (initialized = true);
+                    }
+                    break;
+                }
+                case 's': {
+                    if (!isHost && !initialized) {
+                        setCode(message);
+                        initialized = true;
+                    }
+                    break;
+                }
+            }
+        }
+
+        return () => websocket.close();
     }, []);
     //#endregion
 
