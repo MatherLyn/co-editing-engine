@@ -21,7 +21,6 @@ export abstract class SplayTree {
 
     protected updateSubtreeExtent(node: INode | null): INode | null { return null; }
 
-
     protected splayNode(node: INode): void {
         if (!node) return;
 

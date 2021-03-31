@@ -1,13 +1,13 @@
-import { ID } from "./id";
-import { Position } from "./position";
+// import ID from './id';
+// import Range from './range';
 
-export class Segment {
-    public constructor(
-        private id: ID,
-        private position: Position,
-        private content: string,
-        private extent: Position,
-        private nextSegment: Segment | null,
-        private deletions: Set<string>
-    ) {}
-}
+// export default class Segment {
+//     public constructor(
+//         private id: ID,
+//         private range: Range,
+//         private text: string,
+//         private extent: Position,
+//         private nextSegment: Segment | null,
+//         private deletions: Set<string>
+//     ) {}
+// }

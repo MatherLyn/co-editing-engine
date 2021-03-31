@@ -1,4 +1,4 @@
-export class ID {
+export default class ID {
     public constructor(
         private clientID: number,
         private vectorClock: number

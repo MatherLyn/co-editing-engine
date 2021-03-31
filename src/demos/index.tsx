@@ -3,9 +3,9 @@ import './index.css';
 import React, { useCallback, useEffect, useState } from 'react';
 import { render } from 'react-dom';
 import { BrowserRouter, useLocation } from 'react-router-dom';
-import MonacoEditor, { monaco as monacoEditor } from 'react-monaco-editor';
+import MonacoEditor, { monaco, monaco as monacoEditor } from 'react-monaco-editor';
 import { uuidv4 } from 'lib0/random';
-import { Document } from 'src/structs/document';
+// import { Document } from 'src/structs/document';
 import { useQueryParams } from 'src/utils/custom-hooks';
 
 
@@ -16,7 +16,6 @@ const App = () => {
     const options: monacoEditor.editor.IStandaloneEditorConstructionOptions = {
         fontSize: 16
     };
-    const [code, setCode] = useState('');
     let isHost: boolean = false;
     let clientID: number = -1;
     let initialized: boolean = false;
@@ -31,7 +30,7 @@ const App = () => {
         window.monaco = monaco;
     }, []);
     const onChange = useCallback((value: string, event: monacoEditor.editor.IModelContentChangedEvent) => {
-        setCode(value);
+        console.log(event);
     }, []);
     //#endregion
 
@@ -54,7 +53,7 @@ const App = () => {
                     if (initialized) {
                         if (isHost) {
                             // @ts-ignore
-                            websocket.send(`s: ${window.editor.getValue()}`);
+                            // websocket.send(`s: ${JSON.stringify(window.editor.getModel())}`);
                         }
                     } else {
                         clientID = Number(/\#\d+/.exec(data)?.[0].slice(1));
@@ -65,7 +64,8 @@ const App = () => {
                 }
                 case 's': {
                     if (!isHost && !initialized) {
-                        setCode(message);
+                        // @ts-ignore
+                        // window.editor.setModel(JSON.parse(message));
                         initialized = true;
                     }
                     break;
@@ -83,7 +83,6 @@ const App = () => {
             height="600"
             language="typescript"
             theme="vs-dark"
-            value={code}
             options={options}
             onChange={onChange}
             editorDidMount = {editorDidMount}
@@ -92,3 +91,6 @@ const App = () => {
 }
 
 render(<BrowserRouter><App /></BrowserRouter>, document.getElementById('root'));
+
+// @ts-ignore
+window.Selection = monaco.Selection;
