@@ -1,23 +1,44 @@
 import { monaco } from 'react-monaco-editor';
-import Range from '../structs/range';
+import Range from 'src/structs/range';
 
-export default class Edit implements monaco.editor.IIdentifiedSingleEditOperation {
-    public static deserialize(serializedString: string) {
-        const splitArray = serializedString.split('; ');
-        const range = Range.deserialize(splitArray[0]);
-        const forceMoveMarkers = Boolean(splitArray[1]);
-        const text = splitArray[2];
+interface IEditOptions extends monaco.editor.IModelContentChange {
+    range: Range;
+    forceMoveMarkers: boolean;
+}
 
-        return new Edit(range, text, forceMoveMarkers);
+export default class Edit implements monaco.editor.IModelContentChange {
+    /**
+     * The range that got replaced.
+     */
+    public readonly range: Range;
+    /**
+     * The offset of the range that got replaced.
+     */
+    public readonly rangeOffset: number;
+    /**
+     * The length of the range that got replaced.
+     */
+    public readonly rangeLength: number;
+    /**
+     * The new text for the range.
+     */
+    public readonly text: string;
+    public readonly forceMoveMarkers: boolean;
+
+    public static deserialize(serializedString: string): Edit {
+        return JSON.parse(serializedString);
     }
 
-    public constructor(
-        public range: Range,
-        public text: string,
-        public forceMoveMarkers?: boolean,
-    ) {}
+    public constructor(options: IEditOptions) {
+        const { range, rangeOffset, rangeLength, text, forceMoveMarkers } = options;
+        this.range = range;
+        this.text = text;
+        this.rangeOffset = rangeOffset;
+        this.rangeLength = rangeLength;
+        this.forceMoveMarkers = forceMoveMarkers;
+    }
 
     public serialize() {
-        return `r: ${this.range.serialize()}; f: ${this.forceMoveMarkers === true ? 1 : 0}; t: ${this.text}`;
+        return JSON.stringify(this);
     }
 }

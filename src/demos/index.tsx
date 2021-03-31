@@ -3,34 +3,39 @@ import './index.css';
 import React, { useCallback, useEffect, useState } from 'react';
 import { render } from 'react-dom';
 import { BrowserRouter, useLocation } from 'react-router-dom';
-import MonacoEditor, { monaco, monaco as monacoEditor } from 'react-monaco-editor';
+import MonacoEditor, { monaco } from 'react-monaco-editor';
+import Range from '../structs/range';
+import Edit from '../operations/edit';
 import { uuidv4 } from 'lib0/random';
 // import { Document } from 'src/structs/document';
 import { useQueryParams } from 'src/utils/custom-hooks';
 
 
+//#region static
+const options: monaco.editor.IStandaloneEditorConstructionOptions = {
+    fontSize: 16
+};
 let websocket: WebSocket;
+//#endregion
+//#region variables
+let isHost: boolean = false;
+let clientID: number = -1;
+let initialized: boolean = false;
+//#endregion
 
 const App = () => {
-    //#region variables
-    const options: monacoEditor.editor.IStandaloneEditorConstructionOptions = {
-        fontSize: 16
-    };
-    let isHost: boolean = false;
-    let clientID: number = -1;
-    let initialized: boolean = false;
-    //#endregion
-
     //#region callbacks
-    const editorDidMount = useCallback((editor: monacoEditor.editor.IStandaloneCodeEditor, monaco: typeof monacoEditor) => {
+    const editorDidMount = useCallback((editor: monaco.editor.IStandaloneCodeEditor, m: typeof monaco) => {
         editor.focus();
         // @ts-ignore
         window.editor = editor;
         // @ts-ignore
-        window.monaco = monaco;
+        window.monaco = m;
     }, []);
-    const onChange = useCallback((value: string, event: monacoEditor.editor.IModelContentChangedEvent) => {
-        console.log(event);
+    const onChange = useCallback((value: string, event: monaco.editor.IModelContentChangedEvent) => {
+        const { changes } = event;
+        const serializedChanges = JSON.stringify(changes);
+        websocket.send(`b: ${serializedChanges}`);
     }, []);
     //#endregion
 
@@ -46,26 +51,27 @@ const App = () => {
             switch(protocol) {
                 case 'a': break;
                 case 'b': {
+                    const changes = JSON.parse(message) as monaco.editor.IModelContentChange[];
+                    // @ts-ignore
+                    window.editor.getModel().applyEdits(changes);
                     break;
                 }
                 case 'n': break;
                 case 'w': {
                     if (initialized) {
                         if (isHost) {
-                            // @ts-ignore
-                            // websocket.send(`s: ${JSON.stringify(window.editor.getModel())}`);
+                            
                         }
-                    } else {
-                        clientID = Number(/\#\d+/.exec(data)?.[0].slice(1));
-                        isHost = clientID === 1;
-                        isHost && (initialized = true);
+                        break;
                     }
+                    clientID = Number(/\#\d+/.exec(data)?.[0].slice(1));
+                    isHost = clientID === 1;
+                    isHost && (initialized = true);
                     break;
                 }
                 case 's': {
                     if (!isHost && !initialized) {
-                        // @ts-ignore
-                        // window.editor.setModel(JSON.parse(message));
+                        
                         initialized = true;
                     }
                     break;

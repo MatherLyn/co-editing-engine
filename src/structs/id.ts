@@ -1,18 +1,32 @@
+interface IIDOptions {
+    readonly clientID: number;
+    readonly vectorClock: number;
+}
+
 export default class ID {
-    public constructor(
-        private clientID: number,
-        private vectorClock: number
-    ) {}
+    public clientID: number;
+    public vectorClock: number;
 
-    public get site() {
-        return this.clientID;
+    public static deserialize(serializedString: string): ID {
+        return JSON.parse(serializedString);
     }
 
-    public get seq() {
-        return this.vectorClock;
+    public static generateLocalNextID(currentID: ID) {
+        const options: IIDOptions = {
+            clientID: currentID.clientID,
+            vectorClock: ++currentID.vectorClock,
+        };
+        
+        return new ID(options);
     }
 
-    public increaseSeq() {
-        return ++this.vectorClock;
+    public constructor(options: IIDOptions) {
+        const { clientID, vectorClock } = options;
+        this.clientID = clientID;
+        this.vectorClock = vectorClock;
+    }
+
+    public serialize() {
+        return JSON.stringify(this);
     }
 }

@@ -1,25 +1,32 @@
-import { IRange } from "monaco-editor";
+import { IRange } from 'monaco-editor';
+
+interface IRangeOptions {
+    readonly startLineNumber: number;
+    readonly startColumn: number;
+    readonly endLineNumber: number;
+    readonly endColumn: number;
+}
 
 export default class Range implements IRange {
-    public static deserialize(serializedString: string) {
-        const splitArray = serializedString.split(', ');
-        const startLineNumber = parseInt(splitArray[0]);
-        const startColumn = parseInt(splitArray[1]);
-        const endLineNumber = parseInt(splitArray[2]);
-        const endColumn = parseInt(splitArray[3]);
+    public readonly startLineNumber: number;
+    public readonly startColumn: number;
+    public readonly endLineNumber: number;
+    public readonly endColumn: number;
 
-        return new Range(startLineNumber, startColumn, endLineNumber, endColumn);
+    public static deserialize(serializedString: string): Range {
+        return JSON.parse(serializedString);
     }
 
-    public constructor(
-        public readonly startLineNumber: number,
-        public readonly startColumn: number,
-        public readonly endLineNumber: number,
-        public readonly endColumn: number,
-    ) {}
+    public constructor(options: IRangeOptions) {
+        const { startLineNumber, startColumn, endLineNumber, endColumn } = options;
+        this.startLineNumber = startLineNumber;
+        this.startColumn = startColumn;
+        this.endLineNumber = endLineNumber;
+        this.endColumn = endColumn;
+    }
 
     public serialize() {
-        return `${this.startLineNumber}, ${this.startColumn}, ${this.endLineNumber}, ${this.endColumn}`;
+        return JSON.stringify(this);
     }
 
     public isIntersectedWith(range: Range) {
@@ -43,4 +50,9 @@ export default class Range implements IRange {
     }
 }
 
-export const ZERO_POSITION = new Range(1, 1, 1, 1);
+export const DEFAULT_RANGE = new Range({
+    startLineNumber: 1,
+    startColumn: 1,
+    endLineNumber: 1,
+    endColumn: 1,
+});

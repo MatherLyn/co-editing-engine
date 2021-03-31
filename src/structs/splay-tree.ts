@@ -1,6 +1,6 @@
-export interface INode { };
+export interface INode {};
 
-export abstract class SplayTree {
+export default abstract class SplayTree {
     protected root: INode | null;
 
     public constructor() {
