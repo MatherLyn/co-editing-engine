@@ -88,7 +88,7 @@ export default class Document {
     public insert(edit: Edit, id: ID) {
         const { range, text } = edit;
         const { startLineNumber, startColumn, endLineNumber, endColumn } = range;
-        if ((startLineNumber === endLineNumber) && (startColumn === endColumn)) throw new Error('illegal insert range');
+        if (!(startLineNumber === endLineNumber && startColumn === endColumn)) throw new Error('illegal insert range');
 
         const [prev, next] = this.getSegmentBoundaryByRange(range);
         const segment = new Segment({

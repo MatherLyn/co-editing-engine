@@ -23,7 +23,16 @@ export default class DocumentTree extends SplayTree {
     }
 
     public insertBetween(prev: Segment, next: Segment, segment: Segment) {
-        
+        this.splayNode(prev);
+        this.splayNode(next);
+        this.root = segment;
+        segment.prev = prev;
+        prev.parent = segment;
+        segment.next = next;
+        next.parent = segment;
+        next.prev = segment;
+        this.updateSubtreeExtent(next);
+        this.updateSubtreeExtent(segment);
     }
 
     public delete(segment: Segment) {

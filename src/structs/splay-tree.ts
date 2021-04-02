@@ -109,7 +109,7 @@ export default abstract class SplayTree {
     }
 
     protected isNodeLeftChild(node: INode | null | null): boolean {
-        return node != null && this.getParent(node) != null && this.getLeft(this.getParent(node)) === node;
+        return node !== null && this.getParent(node) !== null && this.getLeft(this.getParent(node)) === node;
     }
 
     protected isNodeRightChild(node: INode | null | null): boolean {
@@ -129,6 +129,6 @@ export default abstract class SplayTree {
             }
             res = this.getParent(node);
         }
-        return node;
+        return res;
     }
 }
