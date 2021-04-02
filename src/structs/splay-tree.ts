@@ -1,4 +1,10 @@
-export interface INode {};
+export interface INode {
+    subTreeSize: number;
+    parent: INode | null;
+    prev: INode | null;
+    next: INode | null;
+    calcSubTreeSize: number;
+};
 
 export default abstract class SplayTree {
     protected root: INode | null;
@@ -7,21 +13,7 @@ export default abstract class SplayTree {
         this.root = null;
     }
 
-    protected getParent(node: INode | null): INode | null { return null; }
-
-    protected setParent(node: INode | null, target: INode | null): INode | null { return null; }
-
-    protected getLeft(node: INode | null): INode | null { return null; }
-
-    protected setLeft(node: INode | null, target: INode | null): INode | null { return null; }
-
-    protected getRight(node: INode | null): INode | null { return null; }
-
-    protected setRight(node: INode | null, target: INode | null): INode | null { return null; }
-
-    protected updateSubtreeExtent(node: INode | null): INode | null { return null; }
-
-    protected splayNode(node: INode): void {
+    public splayNode(node: INode): void {
         if (!node) return;
 
         while (true) {
@@ -47,6 +39,24 @@ export default abstract class SplayTree {
                 return;
             }
         }
+    }
+
+    protected getParent(node: INode | null): INode | null { return node ? node.parent : null; }
+
+    protected setParent(node: INode | null, target: INode | null): INode | null { return node && (node.parent = target); }
+
+    protected getLeft(node: INode | null): INode | null { return node ? node.prev : null; }
+
+    protected setLeft(node: INode | null, target: INode | null): INode | null { return node && (node.prev = target); }
+
+    protected getRight(node: INode | null): INode | null { return node ? node.next : null; }
+
+    protected setRight(node: INode | null, target: INode | null): INode | null { return node && (node.next = target); }
+
+    protected updateSubtreeExtent(node: INode | null) {
+        if (!node) return;
+
+        node.subTreeSize = node.calcSubTreeSize;
     }
 
     protected rotateNodeLeft(pivot: INode | null): void {
@@ -95,12 +105,12 @@ export default abstract class SplayTree {
         this.updateSubtreeExtent(pivot);
     }
 
-    protected isNodeLeftChild(node: INode | null | null): INode | null {
+    protected isNodeLeftChild(node: INode | null | null): boolean {
         return node != null && this.getParent(node) != null && this.getLeft(this.getParent(node)) === node;
     }
 
-    protected isNodeRightChild(node: INode | null | null): INode | null {
-        return node != null && this.getParent(node) != null && this.getRight(this.getParent(node)) === node;
+    protected isNodeRightChild(node: INode | null | null): boolean {
+        return node !== null && this.getParent(node) !== null && this.getRight(this.getParent(node)) === node;
     }
 
     protected getSuccessor(node: INode): INode | null {

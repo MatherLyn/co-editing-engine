@@ -33,6 +33,20 @@ export default class Range implements IRange {
         return !(this.isBefore(range) || this.isAfter(range));
     }
 
+    public inclues(range: Range) {
+        return range.isIn(this);
+    }
+
+    public isIn(range: Range) {
+        if (
+            (this.startLineNumber < range.startLineNumber || this.endLineNumber > range.endLineNumber) ||
+            this.startLineNumber === range.startLineNumber && this.startColumn < range.startColumn ||
+            this.endLineNumber === range.endLineNumber && this.endColumn > range.endColumn
+        ) return false;
+        
+        return true;
+    }
+
     public isBefore(range: Range) {
         if (this.endLineNumber < range.startLineNumber) return true;
         

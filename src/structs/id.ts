@@ -29,4 +29,8 @@ export default class ID {
     public serialize() {
         return JSON.stringify(this);
     }
+
+    public toString() {
+        return `c${this.clientID}v${this.vectorClock}`;
+    }
 }

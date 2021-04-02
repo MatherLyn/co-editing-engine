@@ -6,6 +6,9 @@ interface IEditsOptions {
     editArray: Edit[];   
 }
 
+/**
+ * An Edits means a series of edits from one peer.
+ */
 export default class Edits {
     public id: ID;
     public editArray: Edit[];

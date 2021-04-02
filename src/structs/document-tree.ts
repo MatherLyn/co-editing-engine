@@ -2,29 +2,44 @@ import Segment from 'src/structs/segment';
 import SplayTree from 'src/structs/splay-tree';
 import ID from 'src/structs/id';
 import { DEFAULT_RANGE } from 'src/structs/range';
+import Edits from 'src/operations/edits';
+import { Range } from 'monaco-editor';
 
 interface IDocumentTreeOptions {
-    clientID: number;
+    segment: Segment
 }
 
 export default class DocumentTree extends SplayTree {
+    protected root: Segment;
+    private documentEntry: Segment;
     public constructor(options: IDocumentTreeOptions) {
         super();
 
-        const { clientID } = options;
-        const id = new ID({
-            clientID,
-            vectorClock: 0,
-        });
+        const { segment } = options;
 
-        this.root = new Segment({
-            id,
-            range: DEFAULT_RANGE,
-            text: '',
-            nextSegment: null,
-            deletions: new Set(),
-        });
+        this.root = segment;
+        this.documentEntry = this.root;
     }
 
-    public getTextValue() {}
+    public insertBetween(prev: Segment, next: Segment, segment: Segment) {}
+
+    public delete(segment: Segment) {
+        this.splayNode(segment);
+        segment.setInvisible();
+    }
+
+    public getSegmentBoundaryByRange(range: Range) {}
+
+    public getAllSegments() {
+        let iterator: Segment = this.documentEntry;
+        const res = [];
+        
+        do {
+            do {
+                res.push(iterator);
+            } while (iterator.nextSplit !== null && (iterator = iterator.nextSplit))
+        } while (iterator.next !== null && (iterator = iterator.next))
+        
+        return res;
+    }
 }
