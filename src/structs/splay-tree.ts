@@ -1,9 +1,12 @@
+import Range from "./range";
+import Segment from "./segment";
+
 export interface INode {
-    subTreeSize: number;
+    subTreeRange: Range;
     parent: INode | null;
     prev: INode | null;
     next: INode | null;
-    calcSubTreeSize: number;
+    calcSubTreeRange: Range;
 };
 
 export default abstract class SplayTree {
@@ -56,7 +59,7 @@ export default abstract class SplayTree {
     protected updateSubtreeExtent(node: INode | null) {
         if (!node) return;
 
-        node.subTreeSize = node.calcSubTreeSize;
+        (node as Segment).updateSubTreeRange();
     }
 
     protected rotateNodeLeft(pivot: INode | null): void {

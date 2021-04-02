@@ -86,10 +86,23 @@ export default class Document {
     }
 
     public insert(edit: Edit, id: ID) {
-        const { range } = edit;
+        const { range, text } = edit;
         const { startLineNumber, startColumn, endLineNumber, endColumn } = range;
+        if ((startLineNumber === endLineNumber) && (startColumn === endColumn)) throw new Error('illegal insert range');
 
-        this.documentTree
+        const [prev, next] = this.getSegmentBoundaryByRange(range);
+        const segment = new Segment({
+            id,
+            range,
+            text,
+            parent: null,
+            prev,
+            next,
+            nextSplit: null,
+        });
+
+        this.documentTree.insertBetween(prev, next, segment);
+        this.segmentShortCut.set(id.toString(), segment);
     }
 
     public delete(edit: Edit, id: ID) {
@@ -109,6 +122,15 @@ export default class Document {
         segments.forEach((segment: Segment) => text += segment.text);
         
         return text;
+    }
+
+
+    private getSegmentBoundaryByRange(range: Range): [Segment, Segment] {
+        let res = this.documentTree.getSegmentBoundaryByRange(range);
+
+        if (res[0] === res[1]) res = this.splitSegment(res[0], range);
+
+        return res;
     }
     
     private splitSegment(segment: Segment, offset: Range) {

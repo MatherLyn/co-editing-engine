@@ -17,6 +17,40 @@ export default class Range implements IRange {
         return JSON.parse(serializedString);
     }
 
+    public static pointIsInRange(lineNumber: number, column: number, range: Range) {
+        const { startLineNumber, startColumn, endLineNumber, endColumn } = range;
+
+        if (lineNumber === startLineNumber) return column >= startColumn;
+
+        if (lineNumber === endLineNumber) return column <= endColumn;
+
+        return (lineNumber > startLineNumber && lineNumber < endLineNumber);
+    }
+
+    public static pointIsBeforeRange(lineNumber: number, column: number, range: Range) {
+        const { startLineNumber, startColumn } = range;
+        
+        return (
+            lineNumber < startLineNumber ||
+            (lineNumber === startLineNumber && column < startColumn)
+        );
+    }
+
+    public static pointIsAfterRange(lineNumber: number, column: number, range: Range) {
+        const { endLineNumber, endColumn } = range;
+        
+        return (
+            lineNumber > endLineNumber ||
+            (lineNumber === endLineNumber && column > endColumn)
+        );
+    }
+
+    public static pointIsAtEnd(lineNumber: number, column: number, wholeRange: Range) {
+        const { endLineNumber, endColumn } = wholeRange;
+
+        return lineNumber === endLineNumber && column === endColumn;
+    }
+
     public constructor(options: IRangeOptions) {
         const { startLineNumber, startColumn, endLineNumber, endColumn } = options;
         this.startLineNumber = startLineNumber;
@@ -27,6 +61,31 @@ export default class Range implements IRange {
 
     public serialize() {
         return JSON.stringify(this);
+    }
+
+    public getMergedRangeWith(range: Range) {
+        const { startLineNumber, startColumn, endLineNumber, endColumn } = range;
+
+        const resStartLineNumber = Math.min(startLineNumber, this.startLineNumber);
+        const resStartColumn = Math.min(startColumn, this.startColumn);
+        const resEndLineNumber = Math.max(endLineNumber, this.endLineNumber);
+        const resEndColumn = Math.max(endColumn, this.endColumn);
+
+        return new Range({
+            startLineNumber: resStartLineNumber,
+            startColumn: resStartColumn,
+            endLineNumber: resEndLineNumber,
+            endColumn: resEndColumn,
+        });
+    }
+
+    public equals(range: Range) {
+        return (
+            this.startLineNumber === range.startLineNumber &&
+            this.startColumn === range.startColumn &&
+            this.endLineNumber === range.endLineNumber &&
+            this.endColumn === range.endColumn
+        );
     }
 
     public isIntersectedWith(range: Range) {

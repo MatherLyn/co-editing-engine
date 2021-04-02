@@ -7,7 +7,7 @@ interface ISegmentOptions {
     id: ID;
     range: Range;
     text: string;
-    isVisible: boolean;
+    isVisible?: boolean;
     offset?: Range;
     parent: Segment | null;
     prev: Segment | null;
@@ -21,7 +21,7 @@ export default class Segment implements INode {
     public text: string;
     public isVisible: boolean;
     public offset?: Range;
-    public subTreeSize: number; // the cache of sub tree size
+    public subTreeRange: Range; // the cache of sub tree's range
     public parent: Segment | null;
     public prev: Segment | null;
     public next: Segment | null;
@@ -32,23 +32,24 @@ export default class Segment implements INode {
         this.id = id;
         this.range = range;
         this.text = text;
-        this.isVisible = isVisible;
+        this.isVisible = typeof isVisible === 'undefined' ? true : isVisible;
         this.offset = typeof offset === 'undefined' ? undefined : offset;
         this.parent = parent;
         this.prev = prev;
         this.next = next;
         this.nextSplit = nextSplit;
-        this.subTreeSize = this.calcSubTreeSize;
+
+        this.subTreeRange = this.calcSubTreeRange;
     }
 
-    public get calcSubTreeSize() {
-        if (!this.prev && !this.next) return this.text.length;
+    public get calcSubTreeRange() {
+        let res = this.range;
 
-        let res = 0;
+        if (!this.prev && !this.next) return res;
 
-        if (this.prev) res += this.prev.calcSubTreeSize;
+        if (this.prev) res = res.getMergedRangeWith(this.prev.calcSubTreeRange);
 
-        if (this.next) res += this.next.calcSubTreeSize;
+        if (this.next) res = res.getMergedRangeWith(this.next.calcSubTreeRange);
 
         return res;
     }
@@ -99,5 +100,9 @@ export default class Segment implements INode {
 
     public setInvisible() {
         this.isVisible = false;
+    }
+
+    public updateSubTreeRange() {
+        this.subTreeRange = this.calcSubTreeRange;
     }
 }
