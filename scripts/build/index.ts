@@ -22,7 +22,7 @@ export function bootstrap() {
             res.send(html);
         }
 
-        readFile(fileName, readIndexCallback);
+        middleware.waitUntilValid(() => readFile(fileName, readIndexCallback));
     });
 }
 

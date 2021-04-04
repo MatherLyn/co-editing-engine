@@ -1,6 +1,6 @@
 import { monaco } from 'react-monaco-editor';
 import ID from 'src/structs/id';
-import Range from 'src/structs/range';
+import Range, { MAX_RANGE } from 'src/structs/range';
 import { INode } from 'src/structs/splay-tree';
 
 interface ISegmentOptions {
@@ -47,9 +47,9 @@ export default class Segment implements INode {
 
         if (!this.prev && !this.next) return res;
 
-        if (this.prev) res = res.getMergedRangeWith(this.prev.calcSubTreeRange);
+        if (this.prev && this.prev !== this.parent) res = res.getMergedRangeWith(this.prev.calcSubTreeRange);
 
-        if (this.next) res = res.getMergedRangeWith(this.next.calcSubTreeRange);
+        if (this.next && this.next !== this.parent) res = res.getMergedRangeWith(this.next.calcSubTreeRange);
 
         return res;
     }

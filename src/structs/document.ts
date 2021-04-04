@@ -1,38 +1,51 @@
 import { monaco } from 'react-monaco-editor';
 import Edit from 'src/operations/edit';
-import Edits from 'src/operations/edits';
 import ID from 'src/structs/id';
 import DocumentTree from 'src/structs/document-tree';
 import Segment from 'src/structs/segment';
-import Range, { DEFAULT_RANGE } from 'src/structs/range';
+import Range, { DEFAULT_RANGE, MAX_RANGE } from 'src/structs/range';
 
 interface IDocumentOptions {
     readonly clientID: number;
-    history: Edits[];
+    history: Edit[];
     editorModel: monaco.editor.ITextModel;
 }
 
 export default class Document {
     public readonly clientID: number;
-    public history: Edits[];
+    public history: Edit[];
     private readonly editorModel: monaco.editor.ITextModel;
     private documentTree: DocumentTree;
-    private undoStack: Edits[];
-    private redoStack: Edits[];
-    private pendingOperations: Edits[];
+    private undoStack: Edit[];
+    private redoStack: Edit[];
+    private pendingEdits: Edit[];
     private segmentShortCut: Map<string, Segment>;
 
     public constructor(options: IDocumentOptions) {
         const { clientID, history, editorModel } = options;
-        const id = new ID({
+        const startId = new ID({
+            clientID,
+            vectorClock: -1,
+        });
+        const endId = new ID({
             clientID,
             vectorClock: 0,
         });
-        const rootSegment = new Segment({
-            id,
+        const start = new Segment({
+            id: startId,
             range: DEFAULT_RANGE,
             text: '',
             isVisible: true,
+            parent: null,
+            prev: null,
+            next: null,
+            nextSplit: null,
+        });
+        const end = new Segment({
+            id: endId,
+            range: MAX_RANGE,
+            text: '',
+            isVisible: false,
             parent: null,
             prev: null,
             next: null,
@@ -42,62 +55,88 @@ export default class Document {
         this.clientID = clientID;
         this.history = history;
         this.editorModel = editorModel;
-        this.documentTree = new DocumentTree({ segment: rootSegment });
+        this.documentTree = new DocumentTree({ start, end });
         this.undoStack = [];
         this.redoStack = [];
-        this.pendingOperations = [];
-        this.segmentShortCut = new Map<string, Segment>([[id.toString(), rootSegment]]);
+        this.pendingEdits = [];
+        this.segmentShortCut = new Map<string, Segment>([[startId.toString(), start], [endId.toString(), end]]);
 
         this.initState();
     }
 
-    public integrateOperations(operations: Edits[]) {
-        // 'operations' means edits array collected from different peers
-        operations.forEach(edits => this.integrateEditsFromSinglePeer(edits));
+    public applyLocalEdits(edits: Edit/** probably with no left/right dependencies && no type */[]) {
+        edits.forEach(edit => this.applyLocalEdit(edit));
     }
 
-    public integrateEditsFromSinglePeer(edits: Edits) {
-        if (!this.canIntegrateEditsFromSinglePeer(edits)) {
-            return this.pendingOperations.push(edits);
+    public applyLocalEdit(edit: Edit/** probably with no left/right dependencies && no type */) {
+        if (!edit.leftDependency || !edit.rightDependency) this.setLeftAndRightDependenciesOf(edit);
+        if (!edit.type) this.setTypeOf(edit);
+        
+        switch (edit.type) {
+            case 1/* insert */: {
+                this.insert(edit.id, edit.range, edit.text, edit.leftDependency, edit.rightDependency);
+                return;
+            }
+            case 2/* delete */: {
+                this.delete(edit.id, edit.range, edit.leftDependency, edit.rightDependency);
+                return;
+            }
+            case 3/* undo */: {
+                // not support now
+                return;
+            };
+            case 4/* redo */: {
+                // not support now
+                return;
+            }
+        }
+    }
+
+    public applyRemoteEdits(edits: Edit/** must have left/right dependencies && type */[]) {
+        edits.forEach(edit => this.applyRemoteEdit(edit));
+    }
+
+    public applyRemoteEdit(edit: Edit/** must have left/right dependencies && type */) {
+        if (!this.canRemoteApplyEdit(edit)) return this.pendingEdits.push(edit);
+
+
+    }
+
+    public insert(id: ID, range: Range, text: string, leftDependency?: string, rightDependency?: string) {
+        const { endLineNumber, endColumn } = range;
+        let prev: Segment;
+        let next: Segment;
+        let newRange: Range;
+
+        if (leftDependency && rightDependency) {
+            prev = this.segmentShortCut.get(leftDependency)!;
+            next = this.segmentShortCut.get(rightDependency)!;
+        } else {
+            [prev, next] = this.getSegmentBoundaryByRange(range);
         }
 
-        const { editArray, id } = edits;
+        // special condition: input 'Enter' at the end of the line
+        if (range.isPoint()) {
+            const isEnter = /\n/.test(text);
+            const newEndLineNumber: number = isEnter ? (endLineNumber + 1) : endLineNumber;
+            const newEndColumn: number = isEnter ? 1 : endColumn + text.length;
 
-        editArray.forEach(edit => {
-            switch (edit.type) {
-                case 1/* insert */: {
-                    this.insert(edit, id);
-                    return;
-                }
-                case 2/* delete */: {
-                    this.delete(edit, id);
-                    return;
-                }
-                case 3/* undo */: {
-                    this.undo();
-                    return;
-                }
-                case 4/* redo */: {
-                    this.redo();
-                    return;   
-                }
-            }
-        });
-    }
+            newRange = new Range({
+                ...range,
+                endLineNumber: newEndLineNumber,
+                endColumn: newEndColumn,
+            });
+        } else {
+            newRange = new Range({ ...range });
+        }
 
-    public insert(edit: Edit, id: ID) {
-        const { range, text } = edit;
-        const { startLineNumber, startColumn, endLineNumber, endColumn } = range;
-        if (!(startLineNumber === endLineNumber && startColumn === endColumn)) throw new Error('illegal insert range');
-
-        const [prev, next] = this.getSegmentBoundaryByRange(range);
         const segment = new Segment({
             id,
-            range,
+            range: newRange,
             text,
             parent: null,
-            prev,
-            next,
+            prev: null,
+            next: null,
             nextSplit: null,
         });
 
@@ -105,10 +144,18 @@ export default class Document {
         this.segmentShortCut.set(id.toString(), segment);
     }
 
-    public delete(edit: Edit, id: ID) {
-        const { range } = edit;
-        const { startLineNumber, startColumn, endLineNumber, endColumn } = range;
+    public delete(id: ID, range: Range, leftDependency?: string, rightDependency?: string) {
+        let prev: Segment;
+        let next: Segment;
 
+        if (leftDependency && rightDependency) {
+            prev = this.segmentShortCut.get(leftDependency)!;
+            next = this.segmentShortCut.get(rightDependency)!;
+        } else {
+            [prev, next] = this.getSegmentBoundaryByRange(range);
+        }
+
+        this.documentTree.deleteBetween(prev, next);
     }
 
     public undo() {}
@@ -123,7 +170,6 @@ export default class Document {
         
         return text;
     }
-
 
     private getSegmentBoundaryByRange(range: Range): [Segment, Segment] {
         let res = this.documentTree.getSegmentBoundaryByRange(range);
@@ -140,56 +186,57 @@ export default class Document {
         return res;
     }
 
+    private setLeftAndRightDependenciesOf(edit: Edit) {
+        const [prev, next] = this.getSegmentBoundaryByRange(edit.range);
+
+        return edit.setDependencies(prev.id.toString(), next.id.toString());
+    }
+
+    private setTypeOf(edit: Edit) {
+        return edit.setType(1);
+    }
+
     private initState() {
         const text = this.getText();
         this.editorModel.setValue(text);
 
-        this.regularCheckPendingOperations(10000);
+        this.checkPendingEditsRegularly(10000);
     }
 
-    private regularCheckPendingOperations(interval: number) {
-        setInterval(this.checkPendingOperations, interval);
+    private checkPendingEditsRegularly(interval: number) {
+        setInterval(this.checkPendingEdits, interval);
     }
 
-    private checkPendingOperations() {
-        const { length } = this.pendingOperations;
+    private checkPendingEdits = () => {
+        const { length } = this.pendingEdits;
 
         for (let i = length - 1; i >= 0; i--) {
-            const edits = this.pendingOperations[i];
+            const edit = this.pendingEdits[i];
 
-            this.integrateEditsFromSinglePeer(edits);
+            this.applyRemoteEdit(edit);
         }
     }
 
-    private canIntegrateEditsFromSinglePeer(edits: Edits) {
-        const ary = edits.editArray;
-        const { length } = ary;
-        let res: boolean = true;
+    private canRemoteApplyEdit(edit: Edit) {
+        switch (edit.type) {
+            case 1/* insert */: 
+            case 2/* delete */: {
+                const hasLeftAndRightDependencies = (
+                    this.segmentShortCut.has(edit.leftDependency) &&
+                    this.segmentShortCut.has(edit.rightDependency)
+                );
 
-        for (let i = 0; i < length; i++) {
-            const edit = ary[i];
-            switch (edit.type) {
-                case 1/* insert */: 
-                case 2/* delete */: {
-                    const hasLeftAndRightDependencies = (
-                        this.segmentShortCut.has(edit.leftDependency) &&
-                        this.segmentShortCut.has(edit.rightDependency)
-                    );
-
-                    if (hasLeftAndRightDependencies) continue;
-                    return false;
-                }
-                case 3/* undo */: {
-                    // not support now
-                    return false;
-                };
-                case 4/* redo */: {
-                    // not support now
-                    return false;
-                }
+                if (hasLeftAndRightDependencies) return true;
+                return false;
+            }
+            case 3/* undo */: {
+                // not support now
+                return false;
+            };
+            case 4/* redo */: {
+                // not support now
+                return false;
             }
         }
-
-        return res;
     }
 }

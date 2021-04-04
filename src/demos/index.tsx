@@ -9,7 +9,6 @@ import Edit from '../operations/edit';
 import { uuidv4 } from 'lib0/random';
 import Document from 'src/structs/document';
 import ID from 'src/structs/id';
-import Edits from 'src/operations/edits';
 
 
 //#region static
@@ -21,8 +20,8 @@ let websocket: WebSocket;
 //#endregion
 //#region variables
 let isHost: boolean = false;
-let clientID: number = -1;
-let vectorClock: number = -1;
+let clientID: number = 1;
+let vectorClock: number = 1;
 let initialized: boolean = false;
 //#endregion
 
@@ -41,28 +40,23 @@ const App = () => {
         });
         // @ts-ignore
         window.test = shareDocument;
+        // @ts-ignore
+        window.documentEntry = shareDocument.documentTree.root;
     }, []);
     const onChange = useCallback((value: string, event: monaco.editor.IModelContentChangedEvent) => {
         const { changes } = event;
         const edit = changes[0];
-        const { startLineNumber, startColumn, endLineNumber, endColumn } = edit.range;
+        const { text } = edit;
+        const range = new Range({ ...edit.range });
         const serializedChanges = JSON.stringify(changes);
         const id = new ID({
-            clientID: 1,
-            vectorClock: ++vectorClock,
+            clientID,
+            vectorClock: vectorClock++,
         });
         // websocket.send(`b: ${serializedChanges}`);
-        shareDocument.insert(new Edit({
-            range: new Range({ startLineNumber, startColumn, endLineNumber, endColumn }),
-            // @ts-ignore
-            forceMoveMarkers: changes.forceMoveMarkers,
-            leftDependency: id.toString(),
-            rightDependency: id.toString(),
-            type: 1,
-            text: edit.text,
-            rangeLength: edit.rangeLength,
-            rangeOffset: edit.rangeOffset,
-        }), id);
+        shareDocument.applyLocalEdit(new Edit({ id, ...edit, range, forceMoveMarkers: false }));
+        // @ts-ignore
+        // window.editor.getModel().setValue(value);
     }, []);
     //#endregion
 

@@ -18,13 +18,7 @@ export default class Range implements IRange {
     }
 
     public static pointIsInRange(lineNumber: number, column: number, range: Range) {
-        const { startLineNumber, startColumn, endLineNumber, endColumn } = range;
-
-        if (lineNumber === startLineNumber) return column >= startColumn;
-
-        if (lineNumber === endLineNumber) return column <= endColumn;
-
-        return (lineNumber > startLineNumber && lineNumber < endLineNumber);
+        return !Range.pointIsBeforeRange(lineNumber, column, range) && !Range.pointIsAfterRange(lineNumber, column, range);
     }
 
     public static pointIsBeforeRange(lineNumber: number, column: number, range: Range) {
@@ -45,12 +39,6 @@ export default class Range implements IRange {
         );
     }
 
-    public static pointIsAtEnd(lineNumber: number, column: number, wholeRange: Range) {
-        const { endLineNumber, endColumn } = wholeRange;
-
-        return lineNumber === endLineNumber && column === endColumn;
-    }
-
     public constructor(options: IRangeOptions) {
         const { startLineNumber, startColumn, endLineNumber, endColumn } = options;
         this.startLineNumber = startLineNumber;
@@ -63,19 +51,71 @@ export default class Range implements IRange {
         return JSON.stringify(this);
     }
 
+    public isPoint() {
+        return (this.startLineNumber === this.endLineNumber) && (this.startColumn === this.endColumn);
+    }
+
+    public isAtLeftEdgeOf(range: Range) {
+        return (this.startLineNumber === range.startLineNumber) && (this.startColumn === range.startColumn);
+    }
+
+    public isAtRightEdgeOf(range: Range) {
+        return (this.endLineNumber === range.endLineNumber) && (this.endColumn === range.endColumn);
+    }
+
     public getMergedRangeWith(range: Range) {
         const { startLineNumber, startColumn, endLineNumber, endColumn } = range;
+        let resStartLineNumber: number;
+        let resEndLineNumber: number;
+        let resStartColumn: number;
+        let resEndColumn: number;
 
-        const resStartLineNumber = Math.min(startLineNumber, this.startLineNumber);
-        const resStartColumn = Math.min(startColumn, this.startColumn);
-        const resEndLineNumber = Math.max(endLineNumber, this.endLineNumber);
-        const resEndColumn = Math.max(endColumn, this.endColumn);
+        /** special condition: eof */
+        if (endLineNumber === Infinity) return this;
+
+        if (this.startLineNumber < range.startLineNumber) {
+            resStartLineNumber = this.startLineNumber;
+            resStartColumn = this.startColumn;
+        } else if (this.startLineNumber === range.startLineNumber) {
+            resStartLineNumber = this.startLineNumber;
+            resStartColumn = Math.min(this.startColumn, range.startColumn);
+        } else {
+            resStartLineNumber = range.startLineNumber;
+            resStartColumn = range.startColumn;
+        }
+
+        if (this.endLineNumber < range.endLineNumber) {
+            resEndLineNumber = range.endLineNumber;
+            resEndColumn = range.endColumn;
+        } else if (this.endLineNumber === range.endLineNumber) {
+            resEndLineNumber = this.endLineNumber;
+            resEndColumn = Math.max(this.endColumn, range.endColumn);
+        } else {
+            resEndLineNumber = this.endLineNumber;
+            resEndColumn = this.endColumn;
+        }
 
         return new Range({
             startLineNumber: resStartLineNumber,
             startColumn: resStartColumn,
             endLineNumber: resEndLineNumber,
             endColumn: resEndColumn,
+        });
+    }
+
+    public getMoved(diff: { lineNumber: number, column: number }) {
+        const { lineNumber, column } = diff;
+
+        const newStartLineNumber = this.startLineNumber + lineNumber;
+        const newStartColumn = this.startColumn + column;
+        const newEndLineNumber = this.endLineNumber + lineNumber;
+        const newEndColumn = this.endColumn + column;
+
+        return new Range({
+            startLineNumber: newStartLineNumber,
+            startColumn: newStartColumn,
+            endLineNumber: newEndLineNumber,
+            endColumn: newEndColumn,
         });
     }
 
@@ -99,8 +139,8 @@ export default class Range implements IRange {
     public isIn(range: Range) {
         if (
             (this.startLineNumber < range.startLineNumber || this.endLineNumber > range.endLineNumber) ||
-            this.startLineNumber === range.startLineNumber && this.startColumn < range.startColumn ||
-            this.endLineNumber === range.endLineNumber && this.endColumn > range.endColumn
+            (this.startLineNumber === range.startLineNumber && this.startColumn < range.startColumn) ||
+            (this.endLineNumber === range.endLineNumber && this.endColumn > range.endColumn)
         ) return false;
         
         return true;
@@ -128,4 +168,11 @@ export const DEFAULT_RANGE = new Range({
     startColumn: 1,
     endLineNumber: 1,
     endColumn: 1,
+});
+
+export const MAX_RANGE = new Range({
+    startLineNumber: -1,
+    startColumn: -1,
+    endLineNumber: Infinity,
+    endColumn: Infinity,
 });

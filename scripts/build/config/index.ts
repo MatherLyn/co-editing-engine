@@ -7,7 +7,7 @@ import { getOptimization } from './optimization';
 import { getModule } from './module';
 import { getPlugins } from './plugins';
 
-const sourceMap = IS_PRODUCTION ? 'source-map' : 'cheap-module-source-map';
+const sourceMap = 'source-map';
 
 export function getBaseConfig(): Configuration {
     return {

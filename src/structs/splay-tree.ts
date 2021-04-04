@@ -44,6 +44,8 @@ export default abstract class SplayTree {
         }
     }
 
+    protected abstract updateSubtreeExtent(node: INode | null): void;
+
     protected getParent(node: INode | null): INode | null { return node ? node.parent : null; }
 
     protected setParent(node: INode | null, target: INode | null): INode | null { return node && (node.parent = target); }
@@ -55,12 +57,6 @@ export default abstract class SplayTree {
     protected getRight(node: INode | null): INode | null { return node ? node.next : null; }
 
     protected setRight(node: INode | null, target: INode | null): INode | null { return node && (node.next = target); }
-
-    protected updateSubtreeExtent(node: INode | null) {
-        if (!node) return;
-
-        (node as Segment).updateSubTreeRange();
-    }
 
     protected rotateNodeLeft(pivot: INode | null): void {
         const root = this.getParent(pivot);
