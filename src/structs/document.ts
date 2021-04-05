@@ -4,6 +4,7 @@ import ID from 'src/structs/id';
 import DocumentTree from 'src/structs/document-tree';
 import Segment from 'src/structs/segment';
 import Range, { DEFAULT_RANGE, MAX_RANGE } from 'src/structs/range';
+import Deletion from 'src/operations/deletion';
 
 interface IDocumentOptions {
     readonly clientID: number;
@@ -20,6 +21,7 @@ export default class Document {
     private redoStack: Edit[];
     private pendingEdits: Edit[];
     private segmentShortCut: Map<string, Segment>;
+    private deletions: Map<string, Deletion>;
 
     public constructor(options: IDocumentOptions) {
         const { clientID, history, editorModel } = options;
@@ -43,9 +45,9 @@ export default class Document {
         });
         const end = new Segment({
             id: endId,
-            range: MAX_RANGE,
+            range: DEFAULT_RANGE,
             text: '',
-            isVisible: false,
+            isVisible: true,
             parent: null,
             prev: null,
             next: null,
@@ -60,6 +62,7 @@ export default class Document {
         this.redoStack = [];
         this.pendingEdits = [];
         this.segmentShortCut = new Map<string, Segment>([[startId.toString(), start], [endId.toString(), end]]);
+        this.deletions = new Map();
 
         this.initState();
     }
@@ -69,7 +72,6 @@ export default class Document {
     }
 
     public applyLocalEdit(edit: Edit/** probably with no left/right dependencies && no type */) {
-        if (!edit.leftDependency || !edit.rightDependency) this.setLeftAndRightDependenciesOf(edit);
         if (!edit.type) this.setTypeOf(edit);
         
         switch (edit.type) {
@@ -84,9 +86,14 @@ export default class Document {
             case 3/* undo */: {
                 // not support now
                 return;
-            };
+            }
             case 4/* redo */: {
                 // not support now
+                return;
+            }
+            case 5/* splice */: {
+                this.delete(edit.id, edit.range, edit.leftDependency, edit.rightDependency);
+                this.insert(edit.id, edit.range, edit.text, edit.leftDependency, edit.rightDependency);
                 return;
             }
         }
@@ -98,37 +105,47 @@ export default class Document {
 
     public applyRemoteEdit(edit: Edit/** must have left/right dependencies && type */) {
         if (!this.canRemoteApplyEdit(edit)) return this.pendingEdits.push(edit);
+        
+        switch (edit.type) {
+            case 1/* insert */: {
+                this.insert(edit.id, edit.range, edit.text, edit.leftDependency, edit.rightDependency);
+                return;
+            }
+            case 2/* delete */: {
+                this.delete(edit.id, edit.range, edit.leftDependency, edit.rightDependency);
+                return;
+            }
+            case 3/* undo */: {
+                // not support now
+                return;
+            }
+            case 4/* redo */: {
+                // not support now
+                return;
+            }
+            case 5/* splice */: {
+                this.delete(edit.id, edit.range, edit.leftDependency, edit.rightDependency);
+                this.insert(edit.id, edit.range, edit.text, edit.leftDependency, edit.rightDependency);
+                return;
+            }
+        }
 
 
     }
 
     public insert(id: ID, range: Range, text: string, leftDependency?: string, rightDependency?: string) {
-        const { endLineNumber, endColumn } = range;
         let prev: Segment;
         let next: Segment;
-        let newRange: Range;
 
+        //#region preprocess
         if (leftDependency && rightDependency) {
-            prev = this.segmentShortCut.get(leftDependency)!;
             next = this.segmentShortCut.get(rightDependency)!;
+            prev = this.documentTree.getPredecessor(next) as Segment;
         } else {
             [prev, next] = this.getSegmentBoundaryByRange(range);
         }
 
-        // special condition: input 'Enter' at the end of the line
-        if (range.isPoint()) {
-            const isEnter = /\n/.test(text);
-            const newEndLineNumber: number = isEnter ? (endLineNumber + 1) : endLineNumber;
-            const newEndColumn: number = isEnter ? 1 : endColumn + text.length;
-
-            newRange = new Range({
-                ...range,
-                endLineNumber: newEndLineNumber,
-                endColumn: newEndColumn,
-            });
-        } else {
-            newRange = new Range({ ...range });
-        }
+        const newRange = this.getRangeByText(text, range);
 
         const segment = new Segment({
             id,
@@ -153,8 +170,13 @@ export default class Document {
             next = this.segmentShortCut.get(rightDependency)!;
         } else {
             [prev, next] = this.getSegmentBoundaryByRange(range);
+            leftDependency = prev.id.toString();
+            rightDependency = next.id.toString();
         }
 
+        const deletion = new Deletion({ id, range, leftDependency, rightDependency });
+
+        this.deletions.set(id.toString(), deletion);
         this.documentTree.deleteBetween(prev, next);
     }
 
@@ -166,20 +188,44 @@ export default class Document {
         let text = '';
         const segments = this.documentTree.getAllSegments();
 
-        segments.forEach((segment: Segment) => text += segment.text);
+        segments.forEach(segment => segment.isVisible && (text += segment.text));
         
         return text;
     }
 
+    private getRangeByText(text: string, originalRange: Range) {
+        const enterNumber = text.match(/\n/g)?.length || 0;
+        const { startLineNumber, startColumn } = originalRange;
+        const endLineNumber = startLineNumber + enterNumber;
+        let endColumn: number;
+
+        if (enterNumber) {
+            const lastIndexOfEnter = text.lastIndexOf('\n');
+            endColumn = text.substring(lastIndexOfEnter + 1).length + 1;
+        } else {
+            endColumn = startColumn + text.length;
+        }
+        
+        return new Range({ startLineNumber, startColumn, endLineNumber, endColumn });
+    }
+
     private getSegmentBoundaryByRange(range: Range): [Segment, Segment] {
-        let res = this.documentTree.getSegmentBoundaryByRange(range);
+        const { startLineNumber, startColumn, endLineNumber, endColumn } = range;
+        const boundary = this.documentTree.getSegmentBoundaryByRange(range);
 
-        if (res[0] === res[1]) res = this.splitSegment(res[0], range);
+        const leftEdge = new Range({ startLineNumber, startColumn, endLineNumber: startLineNumber, endColumn: startColumn });
+        const rightEdge = new Range({ startLineNumber: endLineNumber, startColumn: endColumn, endLineNumber, endColumn });
 
-        return res;
+        const leftBoundary = this.splitSegment(boundary[0], leftEdge)[0];
+        const rightBoundary = this.splitSegment(boundary[1], rightEdge)[1];
+        
+        return [leftBoundary, rightBoundary];
     }
     
-    private splitSegment(segment: Segment, offset: Range) {
+    private splitSegment(segment: Segment, offset: Range/* which is a point */) {
+        if (!offset.isPoint()) throw new Error('offset is not a point');
+        if (offset.isAtLeftEdgeOf(segment.range) || offset.isAtRightEdgeOf(segment.range)) return [segment, segment];
+
         const res = segment.split(offset, this.editorModel);
         this.documentTree.splayNode(segment);
 
@@ -193,7 +239,11 @@ export default class Document {
     }
 
     private setTypeOf(edit: Edit) {
-        return edit.setType(1);
+        const { range, text } = edit;
+        if (text && !range.isPoint()) return edit.setType(5);
+        if (edit.text.length === 0) return edit.setType(2);
+        
+        edit.setType(1);
     }
 
     private initState() {

@@ -44,7 +44,9 @@ export default abstract class SplayTree {
         }
     }
 
-    protected abstract updateSubtreeExtent(node: INode | null): void;
+    protected abstract updateSubTreeRange(node: INode | null): void;
+    
+    protected abstract updateRange(node: INode | null): void;
 
     protected getParent(node: INode | null): INode | null { return node ? node.parent : null; }
 
@@ -77,8 +79,8 @@ export default abstract class SplayTree {
         this.setLeft(pivot, root);
         this.setParent(this.getLeft(pivot), pivot);
 
-        this.updateSubtreeExtent(root);
-        this.updateSubtreeExtent(pivot);
+        this.updateSubTreeRange(root);
+        this.updateSubTreeRange(pivot);
     }
 
     protected rotateNodeRight(pivot: INode | null): void {
@@ -100,8 +102,8 @@ export default abstract class SplayTree {
         this.setRight(pivot, root);
         this.setParent(this.getRight(pivot), pivot);
 
-        this.updateSubtreeExtent(root);
-        this.updateSubtreeExtent(pivot);
+        this.updateSubTreeRange(root);
+        this.updateSubTreeRange(pivot);
     }
 
     protected isNodeLeftChild(node: INode | null | null): boolean {
@@ -112,18 +114,36 @@ export default abstract class SplayTree {
         return node !== null && this.getParent(node) !== null && this.getRight(this.getParent(node)) === node;
     }
 
-    protected getSuccessor(node: INode): INode | null {
+    public getSuccessor(node: INode): INode | null {
         let res: INode | null;
         if (this.getRight(node)) {
             res = this.getRight(node);
-            while (this.getLeft(node)) {
-                res = this.getLeft(node);
+            while (this.getLeft(res)) {
+                res = this.getLeft(res);
             }
         } else {
-            while (this.getParent(node) && this.getRight(this.getParent(node)) === node) {
-                res = this.getParent(node);
+            res = node;
+            while (this.getParent(res) && this.getRight(this.getParent(res)) === res) {
+                res = this.getParent(res);
             }
-            res = this.getParent(node);
+            res = this.getParent(res);
+        }
+        return res;
+    }
+
+    public getPredecessor(node: INode): INode | null {
+        let res: INode | null;
+        if (this.getLeft(node)) {
+            res = this.getLeft(node);
+            while (this.getRight(res)) {
+                res = this.getRight(res);
+            }
+        } else {
+            res = node;
+            while (this.getParent(res) && this.getLeft(this.getParent(res)) === res) {
+                res = this.getParent(res);
+            }
+            res = this.getParent(res);
         }
         return res;
     }

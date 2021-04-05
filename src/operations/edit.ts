@@ -9,7 +9,7 @@ interface IEditOptions extends monaco.editor.IModelContentChange {
     forceMoveMarkers: boolean;
     leftDependency?: string;
     rightDependency?: string;
-    type?: 1 | 2 | 3 | 4;
+    type?: 1 | 2 | 3 | 4 | 5;
 }
 
 export default class Edit implements monaco.editor.IModelContentChange {
@@ -41,8 +41,9 @@ export default class Edit implements monaco.editor.IModelContentChange {
      * - 2: delete
      * - 3: undo
      * - 4: redo
+     * - 5: splice
      */
-    public type: 0 | 1 | 2 | 3 | 4;
+    public type: 0 | 1 | 2 | 3 | 4 | 5;
 
     public static deserialize(serializedString: string): Edit {
         return JSON.parse(serializedString);
@@ -72,7 +73,7 @@ export default class Edit implements monaco.editor.IModelContentChange {
         this.rightDependency = right;
     }
 
-    public setType(type: 1 | 2 | 3 | 4) {
+    public setType(type: 1 | 2 | 3 | 4 | 5) {
         this.type = type;
     }
 

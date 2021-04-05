@@ -34,20 +34,21 @@ export default class DocumentTree extends SplayTree {
         segment.next = next;
         next.parent = segment;
         next.prev = null;
-        this.updateSubtreeRange(next);
-        this.updateSubtreeExtent(next);
-        this.updateSubtreeExtent(segment);
+        this.updateRange(next);
+        this.updateSubTreeRange(segment);
     }
 
     public deleteBetween(prev: Segment, next: Segment) {
-        let iterator: Segment = prev;
-        while (iterator.next !== null && iterator.next !== next) {
+        let iterator: Segment = this.getSuccessor(prev) as Segment;
+        
+        while (iterator !== this.EOF && iterator !== next) {
             iterator.setInvisible();
-            iterator = iterator.next;
+            iterator.updateSubTreeRange();
+            iterator = this.getSuccessor(iterator) as Segment;
         }
 
-        this.updateSubtreeExtent(prev);
-        this.updateSubtreeExtent(next);
+        this.updateRange(next);
+        this.updateSubTreeRange(next);
     }
 
     public getAllSegments() {
@@ -61,44 +62,29 @@ export default class DocumentTree extends SplayTree {
     public getSegmentBoundaryByRange(range: Range): [Segment, Segment] {
         const { root } = this;
 
-        if (range.equals(root.subTreeRange)) return [this.documentEntry, this.getTheLastSegment()];
-
-        if (range.isIn(root.range)) {
-            if (range.isAtLeftEdgeOf(root.range)) return [root.prev || this.documentEntry, root];
-
-            if (range.isAtRightEdgeOf(root.range)) return [root, root.next || this.EOF];
-
-            return [root, root];
-        }
+        if (range.equals(root.subTreeRange)) return [this.documentEntry, this.EOF];
         
         const { startLineNumber, startColumn, endLineNumber, endColumn } = range;
 
-        const leftBoundary = this.getSegmentContainingPoint(startLineNumber, startColumn, this.root);
-        const rightBoundary = this.getSegmentContainingPoint(endLineNumber, endColumn, this.root);
+        const leftContainer = this.getSegmentContainingPoint(startLineNumber, startColumn, this.root);
+        const rightContainer = this.getSegmentContainingPoint(endLineNumber, endColumn, this.root);
+
+        let leftBoundary: Segment = leftContainer;
+        let rightBoundary: Segment = rightContainer;
+
+        if (range.isAtLeftEdgeOf(leftContainer.range)) leftBoundary = this.getPredecessor(leftContainer) as Segment | null || this.documentEntry;
+        if (range.isAtRightEdgeOf(rightContainer.range)) rightBoundary = this.getSuccessor(rightContainer) as Segment | null || this.EOF;
 
         return [leftBoundary, rightBoundary];
     }
 
-    protected updateSubtreeExtent(root: Segment | null) {
-        root?.updateSubTreeRange();
+    protected updateSubTreeRange(node: Segment) {
+        node.updateSubTreeRange();
     }
 
-    private updateSubtreeRange(root/** must be the right child */: Segment) {
-        const { range } = root;
-        const parentRange = root.parent!.range;
-        const diffLineNumber = parentRange.endLineNumber - range.startLineNumber;
-        const diffColumn = parentRange.endColumn - range.startColumn;
-        const queue: Segment[] = [];
-
-        this.preOrderVisit(root, node => { queue.push(node) });
-
-        queue.forEach(segment => {
-            const diff = {
-                lineNumber: diffLineNumber,
-                column: segment === root ? diffColumn : 0,
-            };
-            segment.range = segment.range.getMoved(diff);
-        });
+    protected updateRange(node/** must be the right child */: Segment) {
+        // only updates the right subtree of the node
+        node.updateRange();
     }
     
     private preOrderVisit(node: Segment, func: (node: Segment) => void): void {
@@ -123,9 +109,5 @@ export default class DocumentTree extends SplayTree {
         }
 
         throw new Error('no segment found');
-    }
-
-    private getTheLastSegment() {
-        return this.EOF;
     }
 }

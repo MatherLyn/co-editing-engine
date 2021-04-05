@@ -71,7 +71,7 @@ export default class Range implements IRange {
         let resEndColumn: number;
 
         /** special condition: eof */
-        if (endLineNumber === Infinity) return this;
+        // if (endLineNumber === Infinity) return this;
 
         if (this.startLineNumber < range.startLineNumber) {
             resStartLineNumber = this.startLineNumber;
