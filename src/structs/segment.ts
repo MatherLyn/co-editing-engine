@@ -1,6 +1,6 @@
 import { monaco } from 'react-monaco-editor';
 import ID from 'src/structs/id';
-import Range, { MAX_RANGE } from 'src/structs/range';
+import Range from 'src/structs/range';
 import { INode } from 'src/structs/splay-tree';
 
 interface ISegmentOptions {
@@ -45,8 +45,6 @@ export default class Segment implements INode {
     public get calcSubTreeRange() {
         let res = this.range;
 
-        if (!this.isVisible) return MAX_RANGE;
-
         if (!this.prev && !this.next) return res;
 
         if (this.prev && this.prev !== this.parent) res = res.getMergedRangeWith(this.prev.calcSubTreeRange);
@@ -54,34 +52,6 @@ export default class Segment implements INode {
         if (this.next && this.next !== this.parent) res = res.getMergedRangeWith(this.next.calcSubTreeRange);
 
         return res;
-    }
-
-    public get calcRange() {
-        if (!this.parent) return this.range;
-
-        const { text } = this;
-        const enterNumber = text.match(/\n/g)?.length || 0;
-        const { endLineNumber, endColumn } = this.parent.range;
-        const newEndLineNumber = endLineNumber + enterNumber;
-        let newEndColumn: number;
-
-        if (enterNumber) {
-            const lastIndexOfEnter = text.lastIndexOf('\n');
-            newEndColumn = text.substring(lastIndexOfEnter + 1).length + 1;
-        } else {
-            newEndColumn = endColumn + text.length;
-        }
-        
-        return new Range({
-            startLineNumber: endLineNumber,
-            startColumn: endColumn,
-            endLineNumber: newEndLineNumber,
-            endColumn: newEndColumn
-        });
-    }
-
-    public get length() {
-        return this.text.length;
     }
 
     public split(offset: Range/* which is a point */, editorModel: monaco.editor.ITextModel): [Segment, Segment] {
@@ -128,17 +98,6 @@ export default class Segment implements INode {
         this.isVisible = false;
         
         const { startLineNumber, startColumn } = this.range;
-
         this.range = new Range({ startLineNumber, startColumn, endLineNumber: startLineNumber, endColumn: startColumn });
-    }
-
-    public updateSubTreeRange() {
-        this.subTreeRange = this.calcSubTreeRange;
-    }
-
-    public updateRange() {
-        this.range = this.calcRange;
-
-        this.next?.updateRange();
     }
 }

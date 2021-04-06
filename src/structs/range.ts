@@ -169,10 +169,3 @@ export const DEFAULT_RANGE = new Range({
     endLineNumber: 1,
     endColumn: 1,
 });
-
-export const MAX_RANGE = new Range({
-    startLineNumber: -1,
-    startColumn: -1,
-    endLineNumber: Infinity,
-    endColumn: Infinity,
-});

@@ -39,15 +39,15 @@ export default class DocumentTree extends SplayTree {
     }
 
     public deleteBetween(prev: Segment, next: Segment) {
-        let iterator: Segment = this.getSuccessor(prev) as Segment;
+        let iterator = this.getSuccessor(prev) as Segment;
         
         while (iterator !== this.EOF && iterator !== next) {
             iterator.setInvisible();
-            iterator.updateSubTreeRange();
             iterator = this.getSuccessor(iterator) as Segment;
         }
 
         this.updateRange(next);
+        this.updateSubTreeRange(prev);
         this.updateSubTreeRange(next);
     }
 
@@ -79,12 +79,42 @@ export default class DocumentTree extends SplayTree {
     }
 
     protected updateSubTreeRange(node: Segment) {
-        node.updateSubTreeRange();
+        node.subTreeRange = node.calcSubTreeRange;
     }
 
     protected updateRange(node/** must be the right child */: Segment) {
         // only updates the right subtree of the node
-        node.updateRange();
+        const predessor = this.getPredecessor(node) as Segment | null;
+        if (!predessor) return node.range;
+
+        const { text } = node;
+        const enterNumber = text.match(/\n/g)?.length || 0;
+        const { endLineNumber, endColumn } = predessor.range;
+        const newStartLineNumber = endLineNumber;
+        const newStartColumn = endColumn;
+        const newEndLineNumber = node.isVisible ? newStartLineNumber + enterNumber : newStartLineNumber;
+        let newEndColumn: number;
+
+        if (node.isVisible) {
+            if (enterNumber) {
+                const lastIndexOfEnter = text.lastIndexOf('\n');
+                newEndColumn = text.substring(lastIndexOfEnter + 1).length + 1;
+            } else {
+                newEndColumn = newStartColumn + text.length;
+            }
+        } else {
+            newEndColumn = newStartColumn;
+        }
+        
+        node.range = new Range({
+            startLineNumber: newStartLineNumber,
+            startColumn: newStartColumn,
+            endLineNumber: newEndLineNumber,
+            endColumn: newEndColumn
+        });
+        
+        const successor = this.getSuccessor(node) as Segment | null;
+        if (successor) this.updateRange(successor);
     }
     
     private preOrderVisit(node: Segment, func: (node: Segment) => void): void {

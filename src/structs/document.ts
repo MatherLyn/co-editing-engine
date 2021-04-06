@@ -3,7 +3,7 @@ import Edit from 'src/operations/edit';
 import ID from 'src/structs/id';
 import DocumentTree from 'src/structs/document-tree';
 import Segment from 'src/structs/segment';
-import Range, { DEFAULT_RANGE, MAX_RANGE } from 'src/structs/range';
+import Range, { DEFAULT_RANGE } from 'src/structs/range';
 import Deletion from 'src/operations/deletion';
 
 interface IDocumentOptions {
@@ -92,8 +92,15 @@ export default class Document {
                 return;
             }
             case 5/* splice */: {
-                this.delete(edit.id, edit.range, edit.leftDependency, edit.rightDependency);
-                this.insert(edit.id, edit.range, edit.text, edit.leftDependency, edit.rightDependency);
+                const deletion = this.delete(edit.id, edit.range, edit.leftDependency, edit.rightDependency);
+                const { startLineNumber, startColumn } = deletion.range;
+                const newRange = new Range({
+                    startLineNumber,
+                    startColumn,
+                    endLineNumber: startLineNumber,
+                    endColumn: startColumn,
+                });
+                this.insert(edit.id, newRange, edit.text, edit.leftDependency, edit.rightDependency);
                 return;
             }
         }
@@ -146,6 +153,7 @@ export default class Document {
         }
 
         const newRange = this.getRangeByText(text, range);
+        //#endregion
 
         const segment = new Segment({
             id,
@@ -178,6 +186,8 @@ export default class Document {
 
         this.deletions.set(id.toString(), deletion);
         this.documentTree.deleteBetween(prev, next);
+
+        return deletion;
     }
 
     public undo() {}
