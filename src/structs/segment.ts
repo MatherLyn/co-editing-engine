@@ -54,7 +54,7 @@ export default class Segment implements INode {
         return res;
     }
 
-    public split(offset: Range/* which is a point */, editorModel: monaco.editor.ITextModel): [Segment, Segment] {
+    public split(offset: Range/* must be a point */): [Segment, Segment] {
         const { id, range, isVisible } = this;
         const { startLineNumber, startColumn, endLineNumber, endColumn } = range;
 
@@ -71,8 +71,8 @@ export default class Segment implements INode {
             endColumn: offset.endColumn,
         });
 
-        const rightText = editorModel.getValueInRange(rightRange);
-        const leftText = editorModel.getValueInRange(leftRange);
+        const rightText = this.getTextInRange(rightRange);
+        const leftText = this.getTextInRange(leftRange);
 
         const suffix = new Segment({
             id,
@@ -88,16 +88,42 @@ export default class Segment implements INode {
 
         this.range = leftRange;
         this.text = leftText;
-        this.next = suffix;
-        this.nextSplit = suffix;
 
         return [this, suffix];
     }
 
     public setInvisible() {
         this.isVisible = false;
-        
+
         const { startLineNumber, startColumn } = this.range;
         this.range = new Range({ startLineNumber, startColumn, endLineNumber: startLineNumber, endColumn: startColumn });
+    }
+
+    private getTextInRange(range: Range) {
+        if (!range.isIn(this.range)) return '';
+
+        const { text } = this;
+        const { startLineNumber, startColumn, endLineNumber, endColumn } = range;
+        let res = '';
+        let startTraverse = false;
+        let lineNumber = this.range.startLineNumber;
+        let column = this.range.startColumn;
+
+        for (let i = 0; i < text.length; i++) {
+            if (lineNumber === startLineNumber && column === startColumn) startTraverse = true;
+            if (lineNumber === endLineNumber && column === endColumn) {
+                break;
+            }
+
+            if (startTraverse) res += text[i];
+
+            if (text[i] === '\n') {
+                lineNumber++;
+                column = 0;
+            }
+            column++;
+        }
+
+        return res;
     }
 }

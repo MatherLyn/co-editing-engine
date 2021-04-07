@@ -223,6 +223,10 @@ export default class Document {
         const { startLineNumber, startColumn, endLineNumber, endColumn } = range;
         const boundary = this.documentTree.getSegmentBoundaryByRange(range);
 
+        if (boundary[0] === boundary[1] && range.isPoint()) {
+            return this.splitSegment(boundary[0], range);
+        }
+
         const leftEdge = new Range({ startLineNumber, startColumn, endLineNumber: startLineNumber, endColumn: startColumn });
         const rightEdge = new Range({ startLineNumber: endLineNumber, startColumn: endColumn, endLineNumber, endColumn });
 
@@ -232,14 +236,11 @@ export default class Document {
         return [leftBoundary, rightBoundary];
     }
     
-    private splitSegment(segment: Segment, offset: Range/* which is a point */) {
+    private splitSegment(segment: Segment, offset: Range/* must be a point */): [Segment, Segment] {
         if (!offset.isPoint()) throw new Error('offset is not a point');
         if (offset.isAtLeftEdgeOf(segment.range) || offset.isAtRightEdgeOf(segment.range)) return [segment, segment];
 
-        const res = segment.split(offset, this.editorModel);
-        this.documentTree.splayNode(segment);
-
-        return res;
+        return this.documentTree.splitSegment(segment, offset);
     }
 
     private setLeftAndRightDependenciesOf(edit: Edit) {

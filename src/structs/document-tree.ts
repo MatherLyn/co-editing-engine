@@ -78,6 +78,24 @@ export default class DocumentTree extends SplayTree {
         return [leftBoundary, rightBoundary];
     }
 
+    public splitSegment(segment: Segment, offset: Range/* must be a point */): [Segment, Segment] {
+        const res = segment.split(offset);
+        const [prefix, suffix] = res;
+
+        this.splayNode(prefix);
+
+        prefix.next && (prefix.next.parent = suffix);
+        suffix.next = prefix.next;
+        suffix.parent = prefix;
+        prefix.next = suffix;
+        prefix.nextSplit = suffix;
+
+        this.updateRange(prefix);
+        this.updateSubTreeRange(prefix);
+
+        return res;
+    }
+
     protected updateSubTreeRange(node: Segment) {
         node.subTreeRange = node.calcSubTreeRange;
     }
