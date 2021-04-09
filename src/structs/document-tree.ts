@@ -25,7 +25,15 @@ export default class DocumentTree extends SplayTree {
         this.documentEntry = this.root;
     }
 
-    public insertBetween(prev: Segment, next: Segment, segment: Segment) {
+    public getAllSegments(): Segment[] {
+        const res: Segment[] = [];
+        
+        this.preOrderVisit(this.root, node => res.push(node));
+        
+        return res;
+    }
+
+    public insertBetween(prev: Segment, next: Segment, segment: Segment): void {
         this.splayNode(prev);
         this.splayNode(next);
         this.root = segment;
@@ -38,25 +46,35 @@ export default class DocumentTree extends SplayTree {
         this.updateSubTreeRange(segment);
     }
 
-    public deleteBetween(prev: Segment, next: Segment) {
+    public deleteBetween(prev: Segment, next: Segment): Set<string> {
         let iterator = this.getSuccessor(prev) as Segment;
+        const deleteNodes: Set<string> = new Set();
         
         while (iterator !== this.EOF && iterator !== next) {
             iterator.setInvisible();
+            deleteNodes.add(iterator.id.toString());
             iterator = this.getSuccessor(iterator) as Segment;
         }
 
         this.updateRange(next);
         this.updateSubTreeRange(prev);
         this.updateSubTreeRange(next);
+
+        return deleteNodes;
     }
 
-    public getAllSegments() {
-        const res: Segment[] = [];
-        
-        this.preOrderVisit(this.root, node => res.push(node));
-        
-        return res;
+    public getRemoteInsertionDependencies(prev: Segment, next: Segment): [Segment, Segment] {
+        let slowIterator: Segment = prev;
+        let fastIterator: Segment = this.getSuccessor(slowIterator) as Segment;
+
+        while (fastIterator !== this.EOF && fastIterator !== next) {
+            if (slowIterator.id.isSmallerThan(fastIterator.id)) break;
+
+            slowIterator = fastIterator;
+            fastIterator = this.getSuccessor(slowIterator) as Segment;
+        }
+
+        return [slowIterator, fastIterator];
     }
 
     public getSegmentBoundaryByRange(range: Range): [Segment, Segment] {

@@ -5,6 +5,9 @@ import DocumentTree from 'src/structs/document-tree';
 import Segment from 'src/structs/segment';
 import Range, { DEFAULT_RANGE } from 'src/structs/range';
 import Deletion from 'src/operations/deletion';
+import Insertion from 'src/operations/insertion';
+import Operation from 'src/operations/operation';
+import Splice from 'src/operations/splice';
 
 interface IDocumentOptions {
     readonly clientID: number;
@@ -19,9 +22,8 @@ export default class Document {
     private documentTree: DocumentTree;
     private undoStack: Edit[];
     private redoStack: Edit[];
-    private pendingEdits: Edit[];
+    private pendingOperation: Operation[];
     private segmentShortCut: Map<string, Segment>;
-    private deletions: Map<string, Deletion>;
 
     public constructor(options: IDocumentOptions) {
         const { clientID, history, editorModel } = options;
@@ -60,28 +62,26 @@ export default class Document {
         this.documentTree = new DocumentTree({ start, end });
         this.undoStack = [];
         this.redoStack = [];
-        this.pendingEdits = [];
-        this.segmentShortCut = new Map<string, Segment>([[startId.toString(), start], [endId.toString(), end]]);
-        this.deletions = new Map();
+        this.pendingOperation = [];
+        this.segmentShortCut = new Map<string, Segment>([[start.id.toString(), start], [end.id.toString(), end]]);
 
         this.initState();
     }
 
-    public applyLocalEdits(edits: Edit/** probably with no left/right dependencies && no type */[]) {
+    //#region local edits
+    public applyLocalEdits(edits: Edit[]) {
         edits.forEach(edit => this.applyLocalEdit(edit));
     }
 
-    public applyLocalEdit(edit: Edit/** probably with no left/right dependencies && no type */) {
+    public applyLocalEdit(edit: Edit) {
         if (!edit.type) this.setTypeOf(edit);
         
         switch (edit.type) {
             case 1/* insert */: {
-                this.insert(edit.id, edit.range, edit.text, edit.leftDependency, edit.rightDependency);
-                return;
+                return this.insert(edit.id, edit.range, edit.text);
             }
             case 2/* delete */: {
-                this.delete(edit.id, edit.range, edit.leftDependency, edit.rightDependency);
-                return;
+                return this.delete(edit.id, edit.range);
             }
             case 3/* undo */: {
                 // not support now
@@ -92,7 +92,7 @@ export default class Document {
                 return;
             }
             case 5/* splice */: {
-                const deletion = this.delete(edit.id, edit.range, edit.leftDependency, edit.rightDependency);
+                const deletion = this.delete(edit.id, edit.range);
                 const { startLineNumber, startColumn } = deletion.range;
                 const newRange = new Range({
                     startLineNumber,
@@ -100,60 +100,23 @@ export default class Document {
                     endLineNumber: startLineNumber,
                     endColumn: startColumn,
                 });
-                this.insert(edit.id, newRange, edit.text, edit.leftDependency, edit.rightDependency);
-                return;
+                const insertion = this.insert(edit.id, newRange, edit.text);
+                return new Splice({
+                    id: edit.id,
+                    deleteRange: edit.range,
+                    insertRange: newRange,
+                    deleteNodes: deletion.deleteNodes,
+                    text: insertion.text,
+                    leftDependency: deletion.leftDependency,
+                    rightDependency: deletion.rightDependency,
+                });
             }
         }
     }
 
-    public applyRemoteEdits(edits: Edit/** must have left/right dependencies && type */[]) {
-        edits.forEach(edit => this.applyRemoteEdit(edit));
-    }
-
-    public applyRemoteEdit(edit: Edit/** must have left/right dependencies && type */) {
-        if (!this.canRemoteApplyEdit(edit)) return this.pendingEdits.push(edit);
-        
-        switch (edit.type) {
-            case 1/* insert */: {
-                this.insert(edit.id, edit.range, edit.text, edit.leftDependency, edit.rightDependency);
-                return;
-            }
-            case 2/* delete */: {
-                this.delete(edit.id, edit.range, edit.leftDependency, edit.rightDependency);
-                return;
-            }
-            case 3/* undo */: {
-                // not support now
-                return;
-            }
-            case 4/* redo */: {
-                // not support now
-                return;
-            }
-            case 5/* splice */: {
-                this.delete(edit.id, edit.range, edit.leftDependency, edit.rightDependency);
-                this.insert(edit.id, edit.range, edit.text, edit.leftDependency, edit.rightDependency);
-                return;
-            }
-        }
-
-
-    }
-
-    public insert(id: ID, range: Range, text: string, leftDependency?: string, rightDependency?: string) {
-        let prev: Segment;
-        let next: Segment;
-
-        //#region preprocess
-        if (leftDependency && rightDependency) {
-            next = this.segmentShortCut.get(rightDependency)!;
-            prev = this.documentTree.getPredecessor(next) as Segment;
-        } else {
-            [prev, next] = this.getSegmentBoundaryByRange(range);
-        }
-
+    public insert(id: ID, range: Range, text: string) {
+        const [prev, next] = this.getSegmentBoundaryByRange(range);
         const newRange = this.getRangeByText(text, range);
-        //#endregion
 
         const segment = new Segment({
             id,
@@ -166,34 +129,109 @@ export default class Document {
         });
 
         this.documentTree.insertBetween(prev, next, segment);
-        this.segmentShortCut.set(id.toString(), segment);
+        this.segmentShortCut.set(segment.id.toString(), segment);
+
+        return new Insertion({
+            id,
+            text,
+            leftDependency: prev.id.toString(),
+            leftOffset: prev.offset,
+            rightDependency: next.id.toString(),
+            rightOffset: next.offset,
+        });
     }
 
-    public delete(id: ID, range: Range, leftDependency?: string, rightDependency?: string) {
-        let prev: Segment;
-        let next: Segment;
+    public delete(id: ID, range: Range) {
+        const [prev, next] = this.getSegmentBoundaryByRange(range);
+        const deleteNodes = this.documentTree.deleteBetween(prev, next);
 
-        if (leftDependency && rightDependency) {
-            prev = this.segmentShortCut.get(leftDependency)!;
-            next = this.segmentShortCut.get(rightDependency)!;
-        } else {
-            [prev, next] = this.getSegmentBoundaryByRange(range);
-            leftDependency = prev.id.toString();
-            rightDependency = next.id.toString();
-        }
-
-        const deletion = new Deletion({ id, range, leftDependency, rightDependency });
-
-        this.deletions.set(id.toString(), deletion);
-        this.documentTree.deleteBetween(prev, next);
-
-        return deletion;
+        return new Deletion({
+            id,
+            range,
+            leftDependency: prev.id.toString(),
+            leftOffset: prev.offset,
+            rightDependency: next.id.toString(),
+            rightOffset: next.offset,
+            deleteNodes: Array.from(deleteNodes),
+        });
     }
 
     public undo() {}
 
     public redo() {}
+    //#endregion
+
+    //#region remote operations
+    public integrateRemoteOperations(operations: Operation[]) {
+        operations.forEach(operation => this.integrateRemoteOperation(operation));
+    }
+
+    public integrateRemoteOperation(operation: Operation) {
+        if (!this.canRemoteOperationBeIntegrated(operation)) return this.pendingOperation.push(operation);
+        
+        switch (operation.type) {
+            case 1/* insert */: {
+                this.integrateInsertion(operation as Insertion);
+                return;
+            }
+            case 2/* delete */: {
+                this.integrateDeletion(operation as Deletion);
+                return;
+            }
+            case 3/* undo */: {
+                // not support now
+                return;
+            }
+            case 4/* redo */: {
+                // not support now
+                return;
+            }
+            case 5/* splice */: {
+                this.integrateSplice(operation as Splice);
+                return;
+            }
+        }
+
+
+    }
     
+    private integrateInsertion(insertion: Insertion) {
+        // const { id, text, leftDependency, leftOffset, rightDependency, rightOffset } = insertion;
+        // const tempLeftDependency = this.segmentShortCut.get(leftDependency)!;
+        // const tempRightDependency = this.segmentShortCut.get(rightDependency)!;
+
+        // const [prev, next] = this.getRemoteInsertionDependencies(tempLeftDependency, tempRightDependency, leftOffset, rightOffset);
+        
+        // const { endLineNumber, endColumn } = prev.range;
+        // const newRange = this.getRangeByText(text, new Range({
+        //     startLineNumber: endLineNumber,
+        //     startColumn: endColumn,
+        //     endLineNumber,
+        //     endColumn,
+        // }));
+
+        // const segment = new Segment({
+        //     id,
+        //     range: newRange,
+        //     text,
+        //     parent: null,
+        //     prev: null,
+        //     next: null,
+        //     nextSplit: null,
+        // });
+
+        // this.documentTree.insertBetween(prev, next, segment);
+        // this.segmentShortCut.set(segment.toString(), segment);
+    }
+
+    private integrateDeletion(deletion: Deletion) {
+        const { id, deleteNodes } = deletion;
+        
+    }
+
+    private integrateSplice(splice: Splice) {}
+    //#endregion
+
     public getText() {
         let text = '';
         const segments = this.documentTree.getAllSegments();
@@ -236,6 +274,9 @@ export default class Document {
         return [leftBoundary, rightBoundary];
     }
     
+    /**
+     * @todo change offset to relative position
+     */
     private splitSegment(segment: Segment, offset: Range/* must be a point */): [Segment, Segment] {
         if (!offset.isPoint()) throw new Error('offset is not a point');
         if (offset.isAtLeftEdgeOf(segment.range) || offset.isAtRightEdgeOf(segment.range)) return [segment, segment];
@@ -261,30 +302,30 @@ export default class Document {
         const text = this.getText();
         this.editorModel.setValue(text);
 
-        this.checkPendingEditsRegularly(10000);
+        this.checkpendingOperationRegularly(10000);
     }
 
-    private checkPendingEditsRegularly(interval: number) {
-        setInterval(this.checkPendingEdits, interval);
+    private checkpendingOperationRegularly(interval: number) {
+        setInterval(this.checkpendingOperation, interval);
     }
 
-    private checkPendingEdits = () => {
-        const { length } = this.pendingEdits;
+    private checkpendingOperation = () => {
+        const { length } = this.pendingOperation;
 
         for (let i = length - 1; i >= 0; i--) {
-            const edit = this.pendingEdits[i];
+            const operation = this.pendingOperation[i];
 
-            this.applyRemoteEdit(edit);
+            this.integrateRemoteOperation(operation);
         }
     }
 
-    private canRemoteApplyEdit(edit: Edit) {
-        switch (edit.type) {
+    private canRemoteOperationBeIntegrated(operation: Operation) {
+        switch (operation.type) {
             case 1/* insert */: 
             case 2/* delete */: {
                 const hasLeftAndRightDependencies = (
-                    this.segmentShortCut.has(edit.leftDependency) &&
-                    this.segmentShortCut.has(edit.rightDependency)
+                    this.segmentShortCut.has(operation.leftDependency) &&
+                    this.segmentShortCut.has(operation.rightDependency)
                 );
 
                 if (hasLeftAndRightDependencies) return true;
@@ -299,5 +340,15 @@ export default class Document {
                 return false;
             }
         }
+    }
+
+    private getRemoteInsertionDependencies(leftDependency: Segment, rightDependency: Segment, leftOffset?: Range, rightOffset?: Range) {
+        // let prev: Segment = leftDependency;
+        // let next: Segment = rightDependency;
+
+        // if (leftOffset) prev = this.splitSegment(leftDependency, leftOffset)[1];
+        // if (rightOffset) next = this.splitSegment(rightDependency, rightOffset)[1];
+
+        // return this.documentTree.getRemoteInsertionDependencies(prev, next);
     }
 }

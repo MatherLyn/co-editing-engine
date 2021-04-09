@@ -161,6 +161,10 @@ export default class Range implements IRange {
 
         return false;
     }
+
+    public toString() {
+        return `${this.startLineNumber},${this.startColumn},${this.endLineNumber},${this.endColumn}`;
+    }
 }
 
 export const DEFAULT_RANGE = new Range({

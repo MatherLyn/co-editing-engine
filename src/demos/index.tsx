@@ -54,7 +54,8 @@ const App = () => {
             vectorClock: vectorClock++,
         });
         // websocket.send(`b: ${serializedChanges}`);
-        shareDocument.applyLocalEdit(new Edit({ id, ...edit, range, forceMoveMarkers: false }));
+        const op = shareDocument.applyLocalEdit(new Edit({ id, ...edit, range, forceMoveMarkers: false }));
+        console.log(op);
         console.log(shareDocument.getText());
         // @ts-ignore
         // window.editor.getModel().setValue(value);

@@ -2,27 +2,29 @@ import ID from 'src/structs/id';
 import Range from 'src/structs/range';
 import Operation from './operation';
 
-interface IDeletionOptions {
+interface ISpliceOptions {
     id: ID;
-    range: Range;
+    deleteRange: Range;
+    insertRange: Range;
     deleteNodes: Array<string>;
+    text: string;
     leftDependency: string;
     leftOffset?: Range;
     rightDependency: string;
     rightOffset?: Range;
 }
 
-export default class Deletion extends Operation {
-    public readonly range: Range;
+export default class Splice extends Operation {
     public readonly deleteNodes: Array<string>;
+    public readonly text: string;
 
-    public constructor(options: IDeletionOptions) {
+    public constructor(options: ISpliceOptions) {
         super(options);
 
-        const { range, deleteNodes } = options;
-
-        this.range = range;
+        const { deleteNodes, text } = options;
+        
         this.deleteNodes = deleteNodes;
-        this.type = 2;
+        this.text = text;
+        this.type = 5;
     }
 }

@@ -30,6 +30,10 @@ export default class ID {
         return JSON.stringify(this);
     }
 
+    public isSmallerThan(id: ID) {
+        return this.clientID < id.clientID || (this.clientID === id.clientID && this.vectorClock < id.vectorClock);
+    }
+
     public toString() {
         return `c${this.clientID}v${this.vectorClock}`;
     }

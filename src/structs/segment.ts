@@ -99,6 +99,10 @@ export default class Segment implements INode {
         this.range = new Range({ startLineNumber, startColumn, endLineNumber: startLineNumber, endColumn: startColumn });
     }
 
+    public toString() {
+        return `${this.id.toString()};${this.offset === undefined ? '' : this.offset.toString()}`;
+    }
+
     private getTextInRange(range: Range) {
         if (!range.isIn(this.range)) return '';
 
