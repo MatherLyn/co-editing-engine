@@ -54,8 +54,6 @@ const App = () => {
         });
         const op = shareDocument.applyLocalEdit(new Edit({ id, ...edit, range, forceMoveMarkers: false }));
         const serializedOp = op?.serialize();
-        console.log(serializedOp);
-        console.log(shareDocument.getText());
         websocket.send(`b: ${serializedOp}`);
     }, []);
     //#endregion
@@ -72,9 +70,7 @@ const App = () => {
             switch(protocol) {
                 case 'a': break;
                 case 'b': {
-                    console.log(message);
-                    const changes = JSON.parse(message) as Operation;
-                    console.log(changes);
+                    const changes = Operation.deserialize(message);
                     shareDocument.integrateRemoteOperation(changes);
                     const res = shareDocument.getText();
                     // @ts-ignore

@@ -8,7 +8,10 @@ export default class ID {
     public vectorClock: number;
 
     public static deserialize(serializedString: string): ID {
-        return JSON.parse(serializedString);
+        const rawID = JSON.parse(serializedString);
+        Reflect.setPrototypeOf(rawID, ID.prototype);
+
+        return rawID as ID;
     }
 
     public static generateIDForNextOperation(currentID: ID) {
@@ -28,6 +31,10 @@ export default class ID {
 
     public serialize() {
         return JSON.stringify(this);
+    }
+
+    public equals(id: ID) {
+        return (this.clientID === id.clientID) && (this.vectorClock === id.vectorClock);
     }
 
     public isSmallerThan(id: ID) {

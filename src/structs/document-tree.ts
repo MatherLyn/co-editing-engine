@@ -2,6 +2,7 @@ import Segment from 'src/structs/segment';
 import SplayTree from 'src/structs/splay-tree';
 import ID from 'src/structs/id';
 import Range from 'src/structs/range';
+import { IDeleteNode } from 'src/operations/deletion';
 
 interface IDocumentTreeOptions {
     start: Segment;
@@ -45,29 +46,39 @@ export default class DocumentTree extends SplayTree {
         this.updateSubTreeRange(segment);
     }
 
-    public deleteBetween(prev: Segment, next: Segment): Set<string> {
-        let iterator = this.getSuccessor(prev) as Segment;
-        const deleteNodes: Set<string> = new Set();
-        
-        while (iterator !== this.EOF && iterator !== next) {
-            iterator.setInvisible();
-            deleteNodes.add(iterator.id.toString());
-            iterator = this.getSuccessor(iterator) as Segment;
-        }
+    public deleteBetween(prev: Segment, next: Segment): IDeleteNode[];
+    public deleteBetween(prev: Segment, next: Segment, segmentsToDelete: Segment[]): void;
+    public deleteBetween(prev: Segment, next: Segment, segmentsToDelete?: Segment[]) {
+        const deleteNodes: IDeleteNode[] = [];
 
-        this.updateRange(next);
+        if (segmentsToDelete) {
+            segmentsToDelete.forEach(segments => segments.setInvisible());
+            this.updateRange(prev);
+        } else {
+            let iterator = this.getSuccessor(prev) as Segment;
+            
+            while (iterator !== this.EOF && iterator !== next) {
+                iterator.setInvisible();
+                deleteNodes.push({
+                    id: iterator.id,
+                    offset: iterator.offset,
+                });
+                iterator = this.getSuccessor(iterator) as Segment;
+            }
+
+            this.updateRange(next);
+        }
         this.updateSubTreeRange(prev);
         this.updateSubTreeRange(next);
 
         return deleteNodes;
     }
 
-    public getRemoteInsertionDependencies(id: ID, left: Segment, right: Segment, leftOffset?: Range, rightOffset?: Range): [Segment, Segment] {
+    public getRemoteInsertionDependencies(id: ID, left: Segment, right: Segment): [Segment, Segment] {
         let slowIterator: Segment = left;
         let fastIterator: Segment = this.getSuccessor(slowIterator) as Segment;
 
-        // if (leftOffset) while(slowIterator.offset !== leftOffset) slowIterator = slowIterator.nextSplit!;
-        // if (rightOffset) while(fastIterator.offset !== rightOffset) fastIterator = fastIterator.nextSplit!;
+        if (left === right) return [slowIterator, fastIterator];
 
         while (fastIterator !== this.EOF && fastIterator !== right) {
             if (id.isSmallerThan(fastIterator.id)) break;

@@ -20,7 +20,7 @@ export default class Segment implements INode {
     public range: Range; // the cache of range
     public text: string;
     public isVisible: boolean;
-    public offset?: Range;
+    public offset: Range;
     public subTreeRange: Range; // the cache of sub tree's range
     public parent: Segment | null;
     public prev: Segment | null;
@@ -33,7 +33,7 @@ export default class Segment implements INode {
         this.range = range;
         this.text = text;
         this.isVisible = typeof isVisible === 'undefined' ? true : isVisible;
-        this.offset = typeof offset === 'undefined' ? undefined : offset;
+        this.offset = offset || new Range({ startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1 });
         this.parent = parent;
         this.prev = prev;
         this.next = next;
@@ -61,18 +61,28 @@ export default class Segment implements INode {
     public split(offset: Range/* must be a point */): [Segment, Segment] {
         const { id, range, isVisible } = this;
         const { startLineNumber, startColumn, endLineNumber, endColumn } = range;
+        let boundaryLineNumber: number;
+        let boundaryColumn: number;
+        
+        if (startLineNumber !== offset.startLineNumber) {
+            boundaryLineNumber = offset.startLineNumber;
+            boundaryColumn = offset.startColumn;
+        } else {
+            boundaryLineNumber = offset.startLineNumber - this.offset.startLineNumber + startLineNumber;
+            boundaryColumn = offset.startColumn - this.offset.startColumn + startColumn;
+        }
 
         const rightRange = new Range({
-            startLineNumber: offset.startLineNumber,
-            startColumn: offset.startColumn,
+            startLineNumber: boundaryLineNumber,
+            startColumn: boundaryColumn,
             endLineNumber,
             endColumn,
         });
         const leftRange = new Range({
             startLineNumber,
             startColumn,
-            endLineNumber: offset.endLineNumber,
-            endColumn: offset.endColumn,
+            endLineNumber: boundaryLineNumber,
+            endColumn: boundaryColumn,
         });
 
         const rightText = this.getTextInRange(rightRange);

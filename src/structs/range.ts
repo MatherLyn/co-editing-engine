@@ -14,7 +14,10 @@ export default class Range implements IRange {
     public readonly endColumn: number;
 
     public static deserialize(serializedString: string): Range {
-        return JSON.parse(serializedString);
+        const rawRange = JSON.parse(serializedString);
+        Reflect.setPrototypeOf(rawRange, Range.prototype);
+
+        return rawRange as Range;
     }
 
     public static pointIsInRange(lineNumber: number, column: number, range: Range) {
@@ -126,10 +129,6 @@ export default class Range implements IRange {
             this.endLineNumber === range.endLineNumber &&
             this.endColumn === range.endColumn
         );
-    }
-
-    public isIntersectedWith(range: Range) {
-        return !(this.isBefore(range) || this.isAfter(range));
     }
 
     public inclues(range: Range) {

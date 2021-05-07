@@ -78,9 +78,6 @@ export default abstract class SplayTree {
 
         this.setLeft(pivot, root);
         this.setParent(this.getLeft(pivot), pivot);
-
-        this.updateSubTreeRange(root);
-        this.updateSubTreeRange(pivot);
     }
 
     protected rotateNodeRight(pivot: INode | null): void {
@@ -101,9 +98,6 @@ export default abstract class SplayTree {
 
         this.setRight(pivot, root);
         this.setParent(this.getRight(pivot), pivot);
-
-        this.updateSubTreeRange(root);
-        this.updateSubTreeRange(pivot);
     }
 
     protected isNodeLeftChild(node: INode | null | null): boolean {

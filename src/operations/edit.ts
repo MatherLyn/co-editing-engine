@@ -45,7 +45,10 @@ export default class Edit implements monaco.editor.IModelContentChange {
     public type: 0 | 1 | 2 | 3 | 4 | 5;
 
     public static deserialize(serializedString: string): Edit {
-        return JSON.parse(serializedString);
+        const rawEdit = JSON.parse(serializedString);
+        Reflect.setPrototypeOf(rawEdit, Edit.prototype);
+
+        return rawEdit as Edit;
     }
 
     public constructor(options: IEditOptions) {
