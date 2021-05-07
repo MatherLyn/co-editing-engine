@@ -10,7 +10,8 @@ interface IOperationOptions {
 }
 
 export default class Operation {
-    public readonly id: ID;
+    public readonly clientID: number;
+    public readonly vectorClock: number;
     public readonly leftDependency: string;
     public readonly leftOffset?: Range;
     public readonly rightDependency: string;
@@ -19,11 +20,16 @@ export default class Operation {
 
     public constructor(options: IOperationOptions) {
         const { id, leftDependency, leftOffset, rightDependency, rightOffset } = options;
-        this.id = id;
+        this.clientID = id.clientID;
+        this.vectorClock = id.vectorClock;
         this.leftDependency = leftDependency;
         this.leftOffset = leftOffset;
         this.rightDependency = rightDependency;
         this.rightOffset = rightOffset;
         this.type = 0;
+    }
+
+    public serialize() {
+        return JSON.stringify(this);
     }
 }

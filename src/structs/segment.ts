@@ -54,6 +54,10 @@ export default class Segment implements INode {
         return res;
     }
 
+    public setID(id: ID) {
+        this.id = id;
+    }
+
     public split(offset: Range/* must be a point */): [Segment, Segment] {
         const { id, range, isVisible } = this;
         const { startLineNumber, startColumn, endLineNumber, endColumn } = range;

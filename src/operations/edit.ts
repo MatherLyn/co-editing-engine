@@ -1,7 +1,6 @@
 import { monaco } from 'react-monaco-editor';
 import ID from 'src/structs/id';
 import Range from 'src/structs/range';
-import Segment from 'src/structs/segment';
 
 interface IEditOptions extends monaco.editor.IModelContentChange {
     id: ID;

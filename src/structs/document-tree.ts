@@ -1,7 +1,6 @@
 import Segment from 'src/structs/segment';
 import SplayTree from 'src/structs/splay-tree';
 import ID from 'src/structs/id';
-import { DEFAULT_RANGE } from 'src/structs/range';
 import Range from 'src/structs/range';
 
 interface IDocumentTreeOptions {
@@ -63,12 +62,15 @@ export default class DocumentTree extends SplayTree {
         return deleteNodes;
     }
 
-    public getRemoteInsertionDependencies(prev: Segment, next: Segment): [Segment, Segment] {
-        let slowIterator: Segment = prev;
+    public getRemoteInsertionDependencies(id: ID, left: Segment, right: Segment, leftOffset?: Range, rightOffset?: Range): [Segment, Segment] {
+        let slowIterator: Segment = left;
         let fastIterator: Segment = this.getSuccessor(slowIterator) as Segment;
 
-        while (fastIterator !== this.EOF && fastIterator !== next) {
-            if (slowIterator.id.isSmallerThan(fastIterator.id)) break;
+        // if (leftOffset) while(slowIterator.offset !== leftOffset) slowIterator = slowIterator.nextSplit!;
+        // if (rightOffset) while(fastIterator.offset !== rightOffset) fastIterator = fastIterator.nextSplit!;
+
+        while (fastIterator !== this.EOF && fastIterator !== right) {
+            if (id.isSmallerThan(fastIterator.id)) break;
 
             slowIterator = fastIterator;
             fastIterator = this.getSuccessor(slowIterator) as Segment;

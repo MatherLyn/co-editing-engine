@@ -11,7 +11,7 @@ export default class ID {
         return JSON.parse(serializedString);
     }
 
-    public static generateLocalNextID(currentID: ID) {
+    public static generateIDForNextOperation(currentID: ID) {
         const options: IIDOptions = {
             clientID: currentID.clientID,
             vectorClock: ++currentID.vectorClock,

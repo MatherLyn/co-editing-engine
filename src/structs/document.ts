@@ -11,22 +11,18 @@ import Splice from 'src/operations/splice';
 
 interface IDocumentOptions {
     readonly clientID: number;
-    history: Edit[];
     editorModel: monaco.editor.ITextModel;
 }
 
 export default class Document {
-    public readonly clientID: number;
-    public history: Edit[];
+    public clientID: number;
     private readonly editorModel: monaco.editor.ITextModel;
     private documentTree: DocumentTree;
-    private undoStack: Edit[];
-    private redoStack: Edit[];
     private pendingOperation: Operation[];
     private segmentShortCut: Map<string, Segment>;
 
     public constructor(options: IDocumentOptions) {
-        const { clientID, history, editorModel } = options;
+        const { clientID, editorModel } = options;
         const startId = new ID({
             clientID,
             vectorClock: -1,
@@ -57,15 +53,16 @@ export default class Document {
         });
 
         this.clientID = clientID;
-        this.history = history;
         this.editorModel = editorModel;
         this.documentTree = new DocumentTree({ start, end });
-        this.undoStack = [];
-        this.redoStack = [];
         this.pendingOperation = [];
         this.segmentShortCut = new Map<string, Segment>([[start.id.toString(), start], [end.id.toString(), end]]);
 
         this.initState();
+    }
+
+    public setClientID(clientID: number) {
+        this.clientID = clientID;
     }
 
     //#region local edits
@@ -92,24 +89,7 @@ export default class Document {
                 return;
             }
             case 5/* splice */: {
-                const deletion = this.delete(edit.id, edit.range);
-                const { startLineNumber, startColumn } = deletion.range;
-                const newRange = new Range({
-                    startLineNumber,
-                    startColumn,
-                    endLineNumber: startLineNumber,
-                    endColumn: startColumn,
-                });
-                const insertion = this.insert(edit.id, newRange, edit.text);
-                return new Splice({
-                    id: edit.id,
-                    deleteRange: edit.range,
-                    insertRange: newRange,
-                    deleteNodes: deletion.deleteNodes,
-                    text: insertion.text,
-                    leftDependency: deletion.leftDependency,
-                    rightDependency: deletion.rightDependency,
-                });
+                return this.splice(edit.id, edit.range, edit.text);
             }
         }
     }
@@ -156,6 +136,29 @@ export default class Document {
         });
     }
 
+    public splice(id: ID, range: Range, text: string) {
+        const deletion = this.delete(id, range);
+        const { startLineNumber, startColumn } = deletion.range;
+        const newRange = new Range({
+            startLineNumber,
+            startColumn,
+            endLineNumber: startLineNumber,
+            endColumn: startColumn,
+        });
+        const insertion = this.insert(id, newRange, text);
+
+        return new Splice({
+            id: id,
+            deleteRange: range,
+            insertRange: newRange,
+            deleteNodes: deletion.deleteNodes,
+            text: insertion.text,
+            leftDependency: deletion.leftDependency,
+            rightDependency: deletion.rightDependency,
+        });
+
+    }
+
     public undo() {}
 
     public redo() {}
@@ -191,45 +194,53 @@ export default class Document {
                 return;
             }
         }
-
-
     }
     
     private integrateInsertion(insertion: Insertion) {
-        // const { id, text, leftDependency, leftOffset, rightDependency, rightOffset } = insertion;
-        // const tempLeftDependency = this.segmentShortCut.get(leftDependency)!;
-        // const tempRightDependency = this.segmentShortCut.get(rightDependency)!;
+        const { clientID, vectorClock, text, leftDependency, leftOffset, rightDependency, rightOffset } = insertion;
+        const id = new ID({ clientID, vectorClock });
+        const left = this.segmentShortCut.get(leftDependency)!;
+        const right = this.segmentShortCut.get(rightDependency)!;
 
-        // const [prev, next] = this.getRemoteInsertionDependencies(tempLeftDependency, tempRightDependency, leftOffset, rightOffset);
-        
-        // const { endLineNumber, endColumn } = prev.range;
-        // const newRange = this.getRangeByText(text, new Range({
-        //     startLineNumber: endLineNumber,
-        //     startColumn: endColumn,
-        //     endLineNumber,
-        //     endColumn,
-        // }));
+        const [prev, next] = this.documentTree.getRemoteInsertionDependencies(id, left, right, leftOffset, rightOffset);
+        const { endLineNumber, endColumn } = prev.range;
+        const startPoint = new Range({
+            startLineNumber: endLineNumber,
+            startColumn: endColumn,
+            endLineNumber,
+            endColumn,
+        });
+        const range = this.getRangeByText(text, startPoint);
 
-        // const segment = new Segment({
-        //     id,
-        //     range: newRange,
-        //     text,
-        //     parent: null,
-        //     prev: null,
-        //     next: null,
-        //     nextSplit: null,
-        // });
+        const segment = new Segment({
+            id,
+            range,
+            text,
+            parent: null,
+            prev,
+            next,
+            nextSplit: null,
+        });
 
-        // this.documentTree.insertBetween(prev, next, segment);
-        // this.segmentShortCut.set(segment.toString(), segment);
+        this.documentTree.insertBetween(prev, next, segment);
+        this.segmentShortCut.set(segment.id.toString(), segment);
     }
 
     private integrateDeletion(deletion: Deletion) {
-        const { id, deleteNodes } = deletion;
-        
+        const { clientID, vectorClock, deleteNodes } = deletion;
+        deleteNodes.forEach(node => {
+            const segment = this.segmentShortCut.get(node);
+            const id = new ID({ clientID, vectorClock });
+
+            segment?.setID(id);
+            segment?.setInvisible();
+        });
     }
 
-    private integrateSplice(splice: Splice) {}
+    private integrateSplice(splice: Splice) {
+        const { clientID, vectorClock, deleteNodes, leftDependency, leftOffset, rightDependency, rightOffset } = splice;
+        
+    }
     //#endregion
 
     public getText() {
@@ -241,9 +252,16 @@ export default class Document {
         return text;
     }
 
-    private getRangeByText(text: string, originalRange: Range) {
+    private initState() {
+        const text = this.getText();
+        this.editorModel.setValue(text);
+
+        this.checkpendingOperationRegularly(10000);
+    }
+
+    private getRangeByText(text: string, startPoint/* point */: Range) {
         const enterNumber = text.match(/\n/g)?.length || 0;
-        const { startLineNumber, startColumn } = originalRange;
+        const { startLineNumber, startColumn } = startPoint;
         const endLineNumber = startLineNumber + enterNumber;
         let endColumn: number;
 
@@ -273,10 +291,7 @@ export default class Document {
         
         return [leftBoundary, rightBoundary];
     }
-    
-    /**
-     * @todo change offset to relative position
-     */
+
     private splitSegment(segment: Segment, offset: Range/* must be a point */): [Segment, Segment] {
         if (!offset.isPoint()) throw new Error('offset is not a point');
         if (offset.isAtLeftEdgeOf(segment.range) || offset.isAtRightEdgeOf(segment.range)) return [segment, segment];
@@ -296,13 +311,6 @@ export default class Document {
         if (edit.text.length === 0) return edit.setType(2);
         
         edit.setType(1);
-    }
-
-    private initState() {
-        const text = this.getText();
-        this.editorModel.setValue(text);
-
-        this.checkpendingOperationRegularly(10000);
     }
 
     private checkpendingOperationRegularly(interval: number) {
@@ -339,16 +347,11 @@ export default class Document {
                 // not support now
                 return false;
             }
+            case 5:/* splice */ {
+                return false;
+            }
         }
-    }
 
-    private getRemoteInsertionDependencies(leftDependency: Segment, rightDependency: Segment, leftOffset?: Range, rightOffset?: Range) {
-        // let prev: Segment = leftDependency;
-        // let next: Segment = rightDependency;
-
-        // if (leftOffset) prev = this.splitSegment(leftDependency, leftOffset)[1];
-        // if (rightOffset) next = this.splitSegment(rightDependency, rightOffset)[1];
-
-        // return this.documentTree.getRemoteInsertionDependencies(prev, next);
-    }
+        return false;
+    }    
 }

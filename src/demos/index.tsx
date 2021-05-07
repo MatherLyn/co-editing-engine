@@ -9,12 +9,12 @@ import Edit from '../operations/edit';
 import { uuidv4 } from 'lib0/random';
 import Document from 'src/structs/document';
 import ID from 'src/structs/id';
+import Operation from 'src/operations/operation';
+import {} from 'lib0/observable';
 
 
 //#region static
-const options: monaco.editor.IStandaloneEditorConstructionOptions = {
-    fontSize: 16
-};
+const options: monaco.editor.IStandaloneEditorConstructionOptions = { fontSize: 16 };
 let shareDocument: Document;
 let websocket: WebSocket;
 //#endregion
@@ -35,7 +35,6 @@ const App = () => {
         window.monaco = m;
         shareDocument = new Document({
             clientID: 1,
-            history: [],
             editorModel: editor.getModel()!,
         });
         // @ts-ignore
@@ -44,21 +43,20 @@ const App = () => {
         window.documentEntry = shareDocument.documentTree.root;
     }, []);
     const onChange = useCallback((value: string, event: monaco.editor.IModelContentChangedEvent) => {
+        if (event.isFlush) return;
+
         const { changes } = event;
         const edit = changes[0];
-        const { text } = edit;
         const range = new Range({ ...edit.range });
-        const serializedChanges = JSON.stringify(changes);
         const id = new ID({
             clientID,
             vectorClock: vectorClock++,
         });
-        // websocket.send(`b: ${serializedChanges}`);
         const op = shareDocument.applyLocalEdit(new Edit({ id, ...edit, range, forceMoveMarkers: false }));
-        console.log(op);
+        const serializedOp = op?.serialize();
+        console.log(serializedOp);
         console.log(shareDocument.getText());
-        // @ts-ignore
-        // window.editor.getModel().setValue(value);
+        websocket.send(`b: ${serializedOp}`);
     }, []);
     //#endregion
 
@@ -74,9 +72,17 @@ const App = () => {
             switch(protocol) {
                 case 'a': break;
                 case 'b': {
-                    const changes = JSON.parse(message) as monaco.editor.IModelContentChange[];
+                    console.log(message);
+                    const changes = JSON.parse(message) as Operation;
+                    console.log(changes);
+                    shareDocument.integrateRemoteOperation(changes);
+                    const res = shareDocument.getText();
                     // @ts-ignore
-                    window.editor.getModel().applyEdits(changes);
+                    const selection = window.editor.getSelection();
+                    // @ts-ignore
+                    window.editor.getModel().setValue(res);
+                    // @ts-ignore
+                    window.editor.setSelection(selection);
                     break;
                 }
                 case 'n': break;
@@ -90,6 +96,7 @@ const App = () => {
                     clientID = Number(/\#\d+/.exec(data)?.[0].slice(1));
                     isHost = clientID === 1;
                     isHost && (initialized = true);
+                    shareDocument.setClientID(clientID);
                     break;
                 }
                 case 's': {
